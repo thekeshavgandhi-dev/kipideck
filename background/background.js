@@ -57,56 +57,72 @@ if (ext.alarms?.onAlarm) {
   });
 }
 
-function buildContextMenus() {
-  ext.contextMenus.removeAll(() => {
-    ext.contextMenus.create({
+// NOTE: `ext` is the Promise-based browser.* API (native on Firefox, via the
+// webextension-polyfill on Chromium) — it does NOT accept Chrome-style
+// callbacks. So this must await removeAll()/create(), never pass a callback
+// (a callback would silently never fire and no menus would be created).
+async function buildContextMenus() {
+  try {
+    await ext.contextMenus.removeAll();
+  } catch {
+    /* ignore — e.g. nothing to remove yet on first install */
+  }
+  const menus = [
+    {
       id: MENU.ROOT,
       title: "Save to Kipi",
       contexts: ["page", "selection", "link", "image", "video"],
-    });
-    ext.contextMenus.create({
+    },
+    {
       id: MENU.SAVE_SELECTION,
       parentId: MENU.ROOT,
       title: 'Save selection: "%s"',
       contexts: ["selection"],
-    });
-    ext.contextMenus.create({
+    },
+    {
       id: MENU.SAVE_LINK,
       parentId: MENU.ROOT,
       title: "Save this link",
       contexts: ["link"],
-    });
-    ext.contextMenus.create({
+    },
+    {
       id: MENU.SAVE_IMAGE,
       parentId: MENU.ROOT,
       title: "Save this image",
       contexts: ["image"],
-    });
-    ext.contextMenus.create({
+    },
+    {
       id: MENU.SAVE_VIDEO,
       parentId: MENU.ROOT,
       title: "Save this video",
       contexts: ["video"],
-    });
-    ext.contextMenus.create({
+    },
+    {
       id: MENU.SAVE_PAGE,
       parentId: MENU.ROOT,
       title: "Save this page (full text, for search)",
       contexts: ["page", "image", "video", "link", "selection"],
-    });
-    ext.contextMenus.create({
+    },
+    {
       id: "kipi_sep",
       parentId: MENU.ROOT,
       type: "separator",
       contexts: ["page", "selection", "link", "image", "video"],
-    });
-    ext.contextMenus.create({
+    },
+    {
       id: MENU.OPEN_LIBRARY,
       parentId: MENU.ROOT,
       title: "Open Kipideck library",
       contexts: ["page", "selection", "link", "image", "video"],
-    });
-  });
+    },
+  ];
+  for (const props of menus) {
+    try {
+      await ext.contextMenus.create(props);
+    } catch (e) {
+      console.warn("[kipideck] contextMenus.create failed:", props.id, e);
+    }
+  }
 }
 
 async function getPageMeta(tabId) {
