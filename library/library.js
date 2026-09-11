@@ -17,10 +17,12 @@ const state = {
 const el = (id) => document.getElementById(id);
 const els = {
   deckList: el("deckList"),
+  tagsSection: el("tagsSection"),
   tagCloud: el("tagCloud"),
   countAll: el("countAll"),
   countPinned: el("countPinned"),
   viewTitle: el("viewTitle"),
+  viewSub: el("viewSub"),
   searchInput: el("searchInput"),
   sortSelect: el("sortSelect"),
   itemsGrid: el("itemsGrid"),
@@ -49,8 +51,8 @@ const els = {
   settingsModalOverlay: el("settingsModalOverlay"),
   settingsModalClose: el("settingsModalClose"),
   autoOrganizeToggle: el("autoOrganizeToggle"),
+  autoSaveToggle: el("autoSaveToggle"),
   toastToggle: el("toastToggle"),
-  floatBtnToggle: el("floatBtnToggle"),
   clearAllBtn: el("clearAllBtn"),
   syncStatus: el("syncStatus"),
   syncStatusIcon: el("syncStatusIcon"),
@@ -85,6 +87,13 @@ function escapeHtml(s) {
 }
 function deckById(id) {
   return state.decks.find((d) => d.id === id);
+}
+/** "#7C5CFC" + alpha -> "rgba(124,92,252,0.14)" (soft deck-color tints). */
+function hexToRgba(hex, a) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if (!m) return `rgba(136,149,167,${a})`;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
 function excerptFor(it) {
@@ -148,6 +157,7 @@ function renderSidebar() {
     for (const t of it.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1;
   }
   const tags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  els.tagsSection.classList.toggle("hidden", tags.length === 0);
   els.tagCloud.innerHTML = "";
   for (const [tag, count] of tags) {
     const pill = document.createElement("button");
@@ -204,8 +214,17 @@ function sortedItems(list) {
   return arr;
 }
 
+function updateViewSub() {
+  const n = scopedItems(true).length;
+  let sub = `${n} item${n === 1 ? "" : "s"}`;
+  if (state.activeTag) sub += ` · #${state.activeTag}`;
+  if (state.query.trim()) sub += ` · “${state.query.trim()}”`;
+  els.viewSub.textContent = sub;
+}
+
 function renderGrid() {
   updateActiveNav();
+  updateViewSub();
   const list = sortedItems(scopedItems(true));
   els.itemsGrid.innerHTML = "";
 
@@ -220,25 +239,31 @@ function renderGrid() {
     return;
   }
 
-  for (const it of list) {
+  for (let i = 0; i < list.length; i++) {
+    const it = list[i];
     const deck = deckById(it.deckId);
+    const color = deck?.color || "#8895A7";
     const card = document.createElement("div");
     card.className = "item-card";
+    card.style.animationDelay = `${Math.min(i * 22, 240)}ms`;
     const thumbContent = it.image
-      ? `<img src="${it.image}" onerror="this.parentElement.textContent='${typeEmoji(it.type)}'" />`
+      ? `<img src="${it.image}" loading="lazy" onerror="this.parentElement.textContent='${typeEmoji(it.type)}'" />`
       : typeEmoji(it.type);
+    const thumbTint = it.image
+      ? ""
+      : `style="background:linear-gradient(135deg, ${hexToRgba(color, 0.16)}, ${hexToRgba(color, 0.05)})"`;
 
     card.innerHTML = `
-      <input type="checkbox" class="item-check" ${state.selected.has(it.id) ? "checked" : ""} />
-      <button class="pin-btn ${it.pinned ? "pinned" : ""}" title="Pin">📍</button>
-      <div class="item-thumb-wrap">${thumbContent}</div>
+      <div class="item-thumb-wrap" ${thumbTint}>
+        <input type="checkbox" class="item-check" title="Select" ${state.selected.has(it.id) ? "checked" : ""} />
+        <button class="pin-btn ${it.pinned ? "pinned" : ""}" title="${it.pinned ? "Unpin" : "Pin"}">📍</button>
+        ${thumbContent}
+      </div>
       <div class="item-info">
         <div class="item-title">${escapeHtml(it.title || it.url || "Untitled")}</div>
         <div class="item-excerpt">${escapeHtml(excerptFor(it))}</div>
-        <div class="tag-row">${(it.tags || []).slice(0, 4).map((t) => `<span class="tag-mini">#${escapeHtml(t)}</span>`).join("")}</div>
         <div class="item-footer">
-          <span class="deck-badge" style="background:${deck?.color || "#8895A7"}">${deck?.icon || "📥"} ${deck?.name || "Inbox"}</span>
-          <span class="item-domain">${escapeHtml(it.domain || "")}</span>
+          <span class="deck-badge" style="background:${hexToRgba(color, 0.12)}; color:${color}">${deck?.icon || "📥"} ${escapeHtml(deck?.name || "Inbox")}</span>
           <span class="item-time">${timeAgo(it.createdAt)}</span>
         </div>
       </div>
@@ -263,6 +288,7 @@ function renderBulkBar() {
   const n = state.selected.size;
   els.bulkBar.classList.toggle("hidden", n === 0);
   els.bulkCount.textContent = `${n} selected`;
+  els.itemsGrid.classList.toggle("selecting", n > 0);
 }
 els.bulkClearBtn.addEventListener("click", () => {
   state.selected.clear();
@@ -315,18 +341,24 @@ async function openDetail(id) {
   const it = await Storage.getItem(id);
   if (!it) return;
   const deck = deckById(it.deckId);
-  const thumb = it.image
-    ? `<img src="${it.image}" />`
-    : typeEmoji(it.type);
+  const color = deck?.color || "#8895A7";
+  // Saved images get a proper hero preview; everything else keeps a small thumb.
+  const hero =
+    it.type === "image" && it.image
+      ? `<img class="detail-hero" src="${it.image}" alt="" />`
+      : "";
+  const thumb = it.image ? `<img src="${it.image}" />` : typeEmoji(it.type);
+  const thumbTint = it.image ? "" : `style="background:linear-gradient(135deg, ${hexToRgba(color, 0.16)}, ${hexToRgba(color, 0.05)})"`;
 
   els.modalBody.innerHTML = `
+    ${hero}
     <div class="detail-header">
-      <div class="detail-thumb">${thumb}</div>
+      <div class="detail-thumb" ${thumbTint}>${thumb}</div>
       <div style="flex:1; min-width:0;">
         <input class="detail-title-input" id="dTitle" value="${escapeHtml(it.title || "")}" />
         <div class="detail-meta">
           ${it.url ? `<a href="${it.url}" target="_blank" rel="noopener">${escapeHtml(it.url)}</a>` : ""}
-          <div>${timeAgo(it.createdAt)} · ${escapeHtml(it.domain || "")}</div>
+          <div>${timeAgo(it.createdAt)}${it.domain ? ` · ${escapeHtml(it.domain)}` : ""}</div>
         </div>
       </div>
     </div>
@@ -349,14 +381,14 @@ async function openDetail(id) {
     <div class="detail-body-text" style="max-height:60px">${escapeHtml(it.reference || it.sourceUrl || it.url || "—")}</div>
 
     <div class="detail-section-title">Your note</div>
-    <textarea id="dNote" rows="2" style="width:100%; border:1px solid var(--border); border-radius:8px; padding:8px; font-family:inherit; font-size:13px;" placeholder="Add a personal note…">${escapeHtml(it.note || "")}</textarea>
+    <textarea id="dNote" rows="2" class="detail-note" placeholder="Add a personal note…">${escapeHtml(it.note || "")}</textarea>
 
     <div class="detail-actions">
       ${it.url ? `<button id="dOpen">🔗 Open source</button>` : ""}
       <button id="dPin">${it.pinned ? "📍 Unpin" : "📌 Pin"}</button>
       <button id="dCopy">📋 Copy reference</button>
-      <button id="dSave" style="background:linear-gradient(135deg,#7c5cfc,#4b2fd8); color:#fff; border:none;">💾 Save changes</button>
-      <button id="dDelete" class="danger-btn">🗑️ Delete</button>
+      <button id="dDelete" class="danger-btn">Delete</button>
+      <button id="dSave" class="primary">💾 Save changes</button>
     </div>
   `;
 
@@ -445,19 +477,20 @@ els.settingsBtn.addEventListener("click", async () => {
   const s = await Storage.getSettings();
   els.autoOrganizeToggle.checked = !!s.autoOrganize;
   els.toastToggle.checked = !!s.showToast;
-  els.floatBtnToggle.checked = !!s.showFloatingButton;
+  els.autoSaveToggle.checked = s.autoSaveSelection ?? s.showFloatingButton ?? true;
   els.settingsModalOverlay.classList.remove("hidden");
 });
 els.settingsModalClose.addEventListener("click", () => els.settingsModalOverlay.classList.add("hidden"));
 els.settingsModalOverlay.addEventListener("click", (e) => {
   if (e.target === els.settingsModalOverlay) els.settingsModalOverlay.classList.add("hidden");
 });
-[els.autoOrganizeToggle, els.toastToggle, els.floatBtnToggle].forEach((t) => {
+[els.autoOrganizeToggle, els.autoSaveToggle, els.toastToggle].forEach((t) => {
   t.addEventListener("change", () => {
     Storage.updateSettings({
       autoOrganize: els.autoOrganizeToggle.checked,
       showToast: els.toastToggle.checked,
-      showFloatingButton: els.floatBtnToggle.checked,
+      autoSaveSelection: els.autoSaveToggle.checked,
+      showFloatingButton: els.autoSaveToggle.checked, // legacy key, kept in sync
     });
   });
 });

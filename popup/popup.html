@@ -10,42 +10,45 @@
     <header class="topbar">
       <div class="brand">
         <img src="../icons/icon32.png" alt="" />
-        <span>Kipideck</span>
+        <span class="brand-name">Kipideck</span>
+        <span class="brand-count" id="itemCount">0 saved</span>
       </div>
       <button id="openLibraryBtn" class="icon-btn" title="Open full library">⤢</button>
     </header>
 
-    <div class="quick-actions">
+    <section class="actions">
       <button id="savePageBtn" class="primary-btn">
-        <span class="ico">📌</span> Save this page
+        <span class="primary-ico">📌</span>
+        <span id="savePageLabel">Save this page</span>
+        <span class="kbd-hint"><kbd>Space</kbd><kbd>K</kbd></span>
       </button>
-      <button id="saveNoteBtn" class="secondary-btn" title="Jot a quick note">✍️ Note</button>
-    </div>
-
-    <div id="noteBox" class="note-box hidden">
-      <textarea id="noteInput" rows="3" placeholder="Type a quick thought or reminder…"></textarea>
-      <div class="note-box-actions">
-        <button id="noteCancelBtn" class="ghost-btn">Cancel</button>
-        <button id="noteSaveBtn" class="primary-btn small">Save note</button>
+      <div class="hint">
+        Right-click anything on a page → <strong>Save to Kipi</strong> ·
+        selected text saves itself
       </div>
+    </section>
+
+    <div class="note-row">
+      <input id="noteInput" type="text" placeholder="Quick note — press Enter to save" />
     </div>
 
-    <div class="search-row">
+    <div class="search-row" id="searchRow" hidden>
+      <span class="search-ico">🔍</span>
       <input id="searchInput" type="search" placeholder="Search your Kipideck…" />
     </div>
 
-    <nav id="deckChips" class="deck-chips"></nav>
-
     <main id="itemsList" class="items-list">
       <div class="empty-state" id="emptyState">
-        <div class="empty-emoji">📭</div>
-        <p>Nothing saved yet.</p>
-        <p class="muted">Right-click anything on a page → <strong>Save to Kipi</strong>.</p>
+        <div class="empty-emoji">📌</div>
+        <p class="empty-title">Nothing saved yet</p>
+        <p class="empty-sub">
+          Right-click any page, link or image → <strong>Save to Kipi</strong>.<br />
+          Or just highlight some text — it saves itself.
+        </p>
       </div>
     </main>
 
     <footer class="footer">
-      <span id="itemCount" class="muted"></span>
       <a href="#" id="openLibraryLink">Open full library →</a>
     </footer>
   </div>

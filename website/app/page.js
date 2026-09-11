@@ -133,7 +133,7 @@ export default function Home() {
           </li>
           <li>
             <strong>See something worth keeping?</strong> Right-click it → <em>Save to Kipi</em>{" "}
-            (or select text and click the floating bubble).
+            (or just highlight text — it saves itself automatically).
           </li>
           <li>
             <strong>Kipideck captures it</strong> — title, URL, image, full text, and a reference

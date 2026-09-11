@@ -4,13 +4,10 @@ import { search as fullTextSearch } from "../lib/search.js";
 
 const els = {
   savePageBtn: document.getElementById("savePageBtn"),
-  saveNoteBtn: document.getElementById("saveNoteBtn"),
-  noteBox: document.getElementById("noteBox"),
+  savePageLabel: document.getElementById("savePageLabel"),
   noteInput: document.getElementById("noteInput"),
-  noteSaveBtn: document.getElementById("noteSaveBtn"),
-  noteCancelBtn: document.getElementById("noteCancelBtn"),
+  searchRow: document.getElementById("searchRow"),
   searchInput: document.getElementById("searchInput"),
-  deckChips: document.getElementById("deckChips"),
   itemsList: document.getElementById("itemsList"),
   emptyState: document.getElementById("emptyState"),
   itemCount: document.getElementById("itemCount"),
@@ -18,7 +15,7 @@ const els = {
   openLibraryLink: document.getElementById("openLibraryLink"),
 };
 
-let state = { items: [], decks: [], activeDeck: "all", query: "" };
+let state = { items: [], decks: [], query: "" };
 
 function openLibrary() {
   ext.tabs.create({ url: ext.runtime.getURL("library/library.html") });
@@ -29,42 +26,56 @@ els.openLibraryLink.addEventListener("click", (e) => {
   openLibrary();
 });
 
+// ---- Save this page ----------------------------------------------------
+let restoreTimer = null;
 els.savePageBtn.addEventListener("click", async () => {
+  if (els.savePageBtn.disabled) return;
   els.savePageBtn.disabled = true;
-  els.savePageBtn.innerHTML = `<span class="ico">⏳</span> Saving…`;
+  els.savePageLabel.textContent = "Saving…";
+  let ok = false;
   try {
     const res = await ext.runtime.sendMessage({ type: "KIPI_SAVE_PAGE" });
-    if (res?.ok) await refresh();
-  } finally {
-    els.savePageBtn.disabled = false;
-    els.savePageBtn.innerHTML = `<span class="ico">📌</span> Save this page`;
+    ok = !!res?.ok;
+    if (ok) await refresh();
+  } catch {
+    ok = false;
   }
+  els.savePageLabel.textContent = ok ? "Saved ✓" : "Save this page";
+  if (!ok) {
+    els.savePageBtn.disabled = false;
+    return;
+  }
+  if (restoreTimer) clearTimeout(restoreTimer);
+  restoreTimer = setTimeout(() => {
+    els.savePageLabel.textContent = "Save this page";
+    els.savePageBtn.disabled = false;
+  }, 1300);
 });
 
-els.saveNoteBtn.addEventListener("click", () => {
-  els.noteBox.classList.remove("hidden");
-  els.noteInput.focus();
-});
-els.noteCancelBtn.addEventListener("click", () => {
-  els.noteBox.classList.add("hidden");
-  els.noteInput.value = "";
-});
-els.noteSaveBtn.addEventListener("click", async () => {
+// ---- Quick note (Enter to save, no extra buttons) ----------------------
+const NOTE_PLACEHOLDER = "Quick note — press Enter to save";
+els.noteInput.addEventListener("keydown", async (e) => {
+  if (e.key !== "Enter") return;
   const text = els.noteInput.value.trim();
   if (!text) return;
-  const res = await ext.runtime.sendMessage({ type: "KIPI_SAVE_NOTE", text });
-  if (res?.ok) {
-    els.noteInput.value = "";
-    els.noteBox.classList.add("hidden");
-    await refresh();
+  els.noteInput.value = "";
+  els.noteInput.placeholder = "Saved ✓";
+  try {
+    const res = await ext.runtime.sendMessage({ type: "KIPI_SAVE_NOTE", text });
+    if (res?.ok) await refresh();
+  } catch {
+    /* background busy — note will be lost only if the popup closes */
   }
+  setTimeout(() => (els.noteInput.placeholder = NOTE_PLACEHOLDER), 1400);
 });
 
+// ---- Search --------------------------------------------------------------
 els.searchInput.addEventListener("input", (e) => {
   state.query = e.target.value;
   render();
 });
 
+// ---- Helpers --------------------------------------------------------------
 function timeAgo(ts) {
   const s = Math.floor((Date.now() - ts) / 1000);
   if (s < 60) return "just now";
@@ -81,52 +92,31 @@ function typeEmoji(type) {
   return { page: "📄", link: "🔗", image: "🖼️", video: "🎬", selection: "✍️", note: "🗒️" }[type] || "📄";
 }
 
-function renderDeckChips() {
-  const counts = {};
-  for (const it of state.items) counts[it.deckId] = (counts[it.deckId] || 0) + 1;
-  const usedDecks = state.decks.filter((d) => counts[d.id]);
-  els.deckChips.innerHTML = "";
-  const allChip = document.createElement("button");
-  allChip.className = "chip" + (state.activeDeck === "all" ? " active" : "");
-  allChip.textContent = `All (${state.items.length})`;
-  allChip.onclick = () => {
-    state.activeDeck = "all";
-    render();
-  };
-  els.deckChips.appendChild(allChip);
-  for (const d of usedDecks) {
-    const chip = document.createElement("button");
-    chip.className = "chip" + (state.activeDeck === d.id ? " active" : "");
-    chip.textContent = `${d.icon} ${d.name} (${counts[d.id]})`;
-    chip.onclick = () => {
-      state.activeDeck = d.id;
-      render();
-    };
-    els.deckChips.appendChild(chip);
-  }
-}
-
-function filteredItems() {
-  let list = state.items;
-  if (state.activeDeck !== "all") list = list.filter((it) => it.deckId === state.activeDeck);
-  if (state.query.trim()) list = fullTextSearch(list, state.query);
-  return list;
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>\"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 function deckById(id) {
   return state.decks.find((d) => d.id === id);
 }
 
-function renderItems() {
-  const items = filteredItems().slice(0, 40);
+// ---- Render ----------------------------------------------------------------
+function render() {
+  els.itemCount.textContent = `${state.items.length} saved`;
+  els.searchRow.hidden = state.items.length === 0;
+
+  const q = state.query.trim();
+  const list = (q ? fullTextSearch(state.items, q) : state.items).slice(0, 40);
+
   els.itemsList.innerHTML = "";
-  if (items.length === 0) {
-    els.emptyState.style.display = "block";
+  if (list.length === 0) {
+    els.emptyState.querySelector(".empty-title").textContent =
+      q && state.items.length > 0 ? "No matches" : "Nothing saved yet";
     els.itemsList.appendChild(els.emptyState);
     return;
   }
-  els.emptyState.style.display = "none";
-  for (const it of items) {
+
+  for (const it of list) {
     const deck = deckById(it.deckId);
     const card = document.createElement("div");
     card.className = "item-card";
@@ -140,26 +130,18 @@ function renderItems() {
       <div class="item-body">
         <div class="item-title">${escapeHtml(it.title || it.url || "Untitled")}</div>
         <div class="item-meta">
-          <span class="item-deck-badge">${deck ? deck.icon + " " + deck.name : "Inbox"}</span>
+          <span class="deck">${deck ? deck.icon + " " + escapeHtml(deck.name) : "📥 Inbox"}</span>
+          <span>·</span>
           <span>${timeAgo(it.createdAt)}</span>
         </div>
-      </div>`;
+      </div>
+    `;
     card.addEventListener("click", () => {
       const url = it.sourceUrl || it.url;
       if (url) ext.tabs.create({ url });
     });
     els.itemsList.appendChild(card);
   }
-}
-
-function escapeHtml(s) {
-  return (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
-function render() {
-  renderDeckChips();
-  renderItems();
-  els.itemCount.textContent = `${state.items.length} item${state.items.length === 1 ? "" : "s"} saved`;
 }
 
 async function refresh() {
