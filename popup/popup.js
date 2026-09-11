@@ -1,4 +1,6 @@
+import { ext } from "../lib/compat.js";
 import { Storage } from "../lib/storage.js";
+import { search as fullTextSearch } from "../lib/search.js";
 
 const els = {
   savePageBtn: document.getElementById("savePageBtn"),
@@ -19,7 +21,7 @@ const els = {
 let state = { items: [], decks: [], activeDeck: "all", query: "" };
 
 function openLibrary() {
-  chrome.tabs.create({ url: chrome.runtime.getURL("library/library.html") });
+  ext.tabs.create({ url: ext.runtime.getURL("library/library.html") });
 }
 els.openLibraryBtn.addEventListener("click", openLibrary);
 els.openLibraryLink.addEventListener("click", (e) => {
@@ -30,13 +32,13 @@ els.openLibraryLink.addEventListener("click", (e) => {
 els.savePageBtn.addEventListener("click", async () => {
   els.savePageBtn.disabled = true;
   els.savePageBtn.innerHTML = `<span class="ico">⏳</span> Saving…`;
-  chrome.runtime.sendMessage({ type: "KIPI_SAVE_PAGE" }, async (res) => {
+  try {
+    const res = await ext.runtime.sendMessage({ type: "KIPI_SAVE_PAGE" });
+    if (res?.ok) await refresh();
+  } finally {
     els.savePageBtn.disabled = false;
     els.savePageBtn.innerHTML = `<span class="ico">📌</span> Save this page`;
-    if (res?.ok) {
-      await refresh();
-    }
-  });
+  }
 });
 
 els.saveNoteBtn.addEventListener("click", () => {
@@ -47,20 +49,19 @@ els.noteCancelBtn.addEventListener("click", () => {
   els.noteBox.classList.add("hidden");
   els.noteInput.value = "";
 });
-els.noteSaveBtn.addEventListener("click", () => {
+els.noteSaveBtn.addEventListener("click", async () => {
   const text = els.noteInput.value.trim();
   if (!text) return;
-  chrome.runtime.sendMessage({ type: "KIPI_SAVE_NOTE", text }, async (res) => {
-    if (res?.ok) {
-      els.noteInput.value = "";
-      els.noteBox.classList.add("hidden");
-      await refresh();
-    }
-  });
+  const res = await ext.runtime.sendMessage({ type: "KIPI_SAVE_NOTE", text });
+  if (res?.ok) {
+    els.noteInput.value = "";
+    els.noteBox.classList.add("hidden");
+    await refresh();
+  }
 });
 
 els.searchInput.addEventListener("input", (e) => {
-  state.query = e.target.value.toLowerCase();
+  state.query = e.target.value;
   render();
 });
 
@@ -106,14 +107,10 @@ function renderDeckChips() {
 }
 
 function filteredItems() {
-  return state.items.filter((it) => {
-    if (state.activeDeck !== "all" && it.deckId !== state.activeDeck) return false;
-    if (state.query) {
-      const hay = `${it.title} ${it.excerpt} ${it.content} ${it.tags?.join(" ")} ${it.domain}`.toLowerCase();
-      if (!hay.includes(state.query)) return false;
-    }
-    return true;
-  });
+  let list = state.items;
+  if (state.activeDeck !== "all") list = list.filter((it) => it.deckId === state.activeDeck);
+  if (state.query.trim()) list = fullTextSearch(list, state.query);
+  return list;
 }
 
 function deckById(id) {
@@ -149,7 +146,7 @@ function renderItems() {
       </div>`;
     card.addEventListener("click", () => {
       const url = it.sourceUrl || it.url;
-      if (url) chrome.tabs.create({ url });
+      if (url) ext.tabs.create({ url });
     });
     els.itemsList.appendChild(card);
   }
@@ -172,8 +169,8 @@ async function refresh() {
   render();
 }
 
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.type === "KIPI_ITEM_SAVED") refresh();
+ext.runtime.onMessage.addListener((msg) => {
+  if (msg?.type === "KIPI_ITEM_SAVED" || msg?.type === "KIPI_SYNCED") refresh();
 });
 
 refresh();

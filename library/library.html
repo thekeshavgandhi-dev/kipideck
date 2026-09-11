@@ -31,6 +31,11 @@
     <div class="nav-section-title">Tags</div>
     <div id="tagCloud" class="tag-cloud"></div>
 
+    <div class="sync-status" id="syncStatus">
+      <span id="syncStatusIcon">🔌</span>
+      <span id="syncStatusText">Sync: off</span>
+    </div>
+
     <div class="sidebar-footer">
       <button id="exportBtn" class="ghost-link">⬇ Export</button>
       <button id="importBtn" class="ghost-link">⬆ Import</button>
@@ -43,8 +48,8 @@
     <header class="content-header">
       <h1 id="viewTitle">All items</h1>
       <div class="header-actions">
-        <input id="searchInput" type="search" placeholder="Search title, text, tags, domain…" />
-        <select id="sortSelect">
+      <input id="searchInput" type="search" placeholder="Search everything — try tag:recipe or site:github.com" title="Full-text search across titles, saved page text, notes, tags and domains. Supports tag: and site: filters." />
+      <select id="sortSelect">
           <option value="new">Newest first</option>
           <option value="old">Oldest first</option>
           <option value="az">Title A–Z</option>
@@ -118,6 +123,32 @@
       <input type="checkbox" id="floatBtnToggle" />
       <span>Show "Save to Kipi" bubble on text selection</span>
     </label>
+    <hr />
+
+    <h3>Sync across devices &amp; browsers</h3>
+    <p class="muted small-text">
+      Kipideck can sync your decks through your own private Google Drive
+      "app data" folder — invisible in your normal Drive, readable only by
+      Kipideck. No account or server of ours involved.
+    </p>
+    <div id="syncSignedOut">
+      <div class="form-row">
+        <label>Google OAuth client ID</label>
+        <input id="syncClientIdInput" placeholder="xxxxx.apps.googleusercontent.com" />
+      </div>
+      <p class="muted small-text">One-time setup by whoever installs Kipideck — see <code>docs/GOOGLE_SYNC_SETUP.md</code> for the 5-minute Google Cloud Console steps to get a client ID.</p>
+      <button id="syncSaveClientIdBtn" class="secondary-btn-full">Save client ID</button>
+      <button id="syncSignInBtn" class="primary-btn">🔐 Sign in with Google &amp; enable sync</button>
+    </div>
+    <div id="syncSignedIn" class="hidden">
+      <div class="sync-account-row">
+        <span id="syncAccountEmail"></span>
+      </div>
+      <div class="muted small-text" id="syncLastAt"></div>
+      <button id="syncNowBtn" class="secondary-btn-full">🔄 Sync now</button>
+      <button id="syncSignOutBtn" class="danger-btn" style="width:100%; margin-top:6px;">Disconnect Google Drive</button>
+    </div>
+
     <hr />
     <button id="clearAllBtn" class="danger-btn">Delete all items &amp; reset decks</button>
   </div>

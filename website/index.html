@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kipideck — Save anything. It organizes itself.</title>
+<meta name="description" content="Kipideck is a browser extension for Chrome, Edge, Brave, Opera and Firefox that saves pages, links, images and selected text with one right-click, auto-organizes them into decks, and syncs across every device via your own Google Drive." />
+<link rel="icon" href="assets/favicon.png" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <div class="brand"><img src="assets/logo.png" alt="Kipideck" /> Kipideck</div>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#browsers">Browsers</a>
+        <a href="#sync">Sync</a>
+        <a href="https://github.com/thekeshavgandhi-dev/kipideck" class="nav-cta" target="_blank" rel="noopener">View on GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <span class="eyebrow">Free • Private • No account required</span>
+      <h1>Save anything you find online.<br />Kipideck organizes it for you.</h1>
+      <p class="lede">
+        Right-click any page, link, image, or highlighted text and choose
+        <strong>Save to Kipi</strong>. It's auto-sorted into decks, tagged,
+        made fully searchable — and can sync across every browser and
+        device through your own Google Drive.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="#install">⬇ Add to your browser — it's free</a>
+        <a class="btn btn-ghost" href="https://github.com/thekeshavgandhi-dev/kipideck" target="_blank" rel="noopener">Read the source</a>
+      </div>
+      <div class="browser-row">
+        <span>Works on</span>
+        <span class="badge">Chrome</span>
+        <span class="badge">Edge</span>
+        <span class="badge">Brave</span>
+        <span class="badge">Opera</span>
+        <span class="badge">Firefox</span>
+      </div>
+    </div>
+    <div class="hero-art">
+      <img src="assets/hero-screenshot.png" alt="Kipideck dashboard preview" />
+    </div>
+  </section>
+
+  <section class="logos-strip">
+    <p>No servers. No tracking. No subscription. Your data stays yours — locally, and optionally in <em>your</em> Google Drive.</p>
+  </section>
+
+  <section id="features" class="section">
+    <h2>Everything you save, actually organized</h2>
+    <div class="grid grid-3">
+      <div class="card">
+        <div class="card-ico">📌</div>
+        <h3>One right-click, saved</h3>
+        <p>Save a whole page, a link, an image, a video, or exactly the text you selected — plus a reference back to where it came from.</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">🗂️</div>
+        <h3>Auto-sorted into decks</h3>
+        <p>A local, offline classifier figures out whether something belongs in Reading, Videos, Shopping, Dev &amp; Docs, Research, or a deck you made yourself — and tags it automatically.</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">🔎</div>
+        <h3>Full-text search</h3>
+        <p>Kipideck indexes the entire readable text of pages you save — not just the title — so you can find that one paragraph weeks later.</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">☁️</div>
+        <h3>Sync via your Google Drive</h3>
+        <p>Sign in once, and your decks follow you to every browser and device — stored in a private app-data folder only Kipideck can read.</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">🌐</div>
+        <h3>Every major browser</h3>
+        <p>One codebase, built on the standard WebExtensions API, running natively on Chrome, Edge, Brave, Opera, and Firefox.</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">🔒</div>
+        <h3>Private by default</h3>
+        <p>Nothing leaves your device unless you turn sync on. Export a full JSON backup any time.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="section alt">
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><strong>Browse normally.</strong> Read articles, shop, watch videos — anything.</li>
+      <li><strong>See something worth keeping?</strong> Right-click it → <em>Save to Kipi</em> (or select text and click the floating bubble).</li>
+      <li><strong>Kipideck captures it</strong> — title, URL, image, full text, and a reference back to the source — and files it into the right deck with tags, instantly and offline.</li>
+      <li><strong>Find it again</strong> in the Library: browse by deck, filter by tag, or full-text search across everything you've ever saved.</li>
+      <li><strong>Optional:</strong> turn on sync and the same library follows you to your other browsers and devices.</li>
+    </ol>
+  </section>
+
+  <section id="browsers" class="section">
+    <h2>Built on web standards — runs everywhere</h2>
+    <p class="section-lede">Kipideck is written against the standard <code>browser.*</code> WebExtensions API (via Mozilla's official polyfill), not Chrome-only APIs — so the exact same codebase installs on:</p>
+    <div class="grid grid-5 browsers-grid">
+      <div class="browser-card">🟢 Chrome</div>
+      <div class="browser-card">🔵 Edge</div>
+      <div class="browser-card">🦁 Brave</div>
+      <div class="browser-card">🔴 Opera</div>
+      <div class="browser-card">🦊 Firefox</div>
+    </div>
+  </section>
+
+  <section id="sync" class="section alt">
+    <h2>Sync, without a server</h2>
+    <p class="section-lede">
+      Instead of running (and asking you to trust) our own backend, Kipideck syncs
+      by writing an encrypted-in-transit JSON snapshot to a hidden
+      "app data" folder inside <strong>your own Google Drive</strong> — invisible in your
+      normal Drive UI, readable only by Kipideck. Sign in with Google on
+      each browser and they merge automatically, with safe conflict handling
+      (newest edit wins, deletions always win over stale copies).
+    </p>
+    <div class="hero-ctas center">
+      <a class="btn btn-ghost" href="https://github.com/thekeshavgandhi-dev/kipideck/blob/main/docs/GOOGLE_SYNC_SETUP.md" target="_blank" rel="noopener">Read the sync setup guide →</a>
+    </div>
+  </section>
+
+  <section id="install" class="section install">
+    <h2>Get Kipideck</h2>
+    <p class="section-lede">Kipideck is currently distributed as source — load it as an unpacked extension in under a minute, on any of these browsers:</p>
+    <div class="install-grid">
+      <div class="card">
+        <h3>Chrome / Edge / Brave / Opera</h3>
+        <ol>
+          <li>Download or clone the <a href="https://github.com/thekeshavgandhi-dev/kipideck" target="_blank" rel="noopener">GitHub repo</a></li>
+          <li>Open <code>chrome://extensions</code> (or your browser's equivalent)</li>
+          <li>Enable <strong>Developer mode</strong></li>
+          <li>Click <strong>Load unpacked</strong> → select the <code>kipideck</code> folder</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3>Firefox</h3>
+        <ol>
+          <li>Download or clone the <a href="https://github.com/thekeshavgandhi-dev/kipideck" target="_blank" rel="noopener">GitHub repo</a></li>
+          <li>Open <code>about:debugging#/runtime/this-firefox</code></li>
+          <li>Click <strong>Load Temporary Add-on…</strong></li>
+          <li>Select <code>kipideck/manifest.json</code></li>
+        </ol>
+      </div>
+    </div>
+    <p class="muted small">Store listings (Chrome Web Store / Firefox Add-ons) coming soon — this page will link to them once published.</p>
+  </section>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="brand"><img src="assets/logo.png" alt="" /> Kipideck</div>
+      <p class="muted">Save anything. It organizes itself. Built in the open on <a href="https://github.com/thekeshavgandhi-dev/kipideck" target="_blank" rel="noopener">GitHub</a>.</p>
+    </div>
+  </footer>
+</body>
+</html>

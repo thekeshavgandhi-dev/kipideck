@@ -1,4 +1,7 @@
+import { ext } from "../lib/compat.js";
 import { Storage } from "../lib/storage.js";
+import { search as fullTextSearch, snippet as searchSnippet } from "../lib/search.js";
+import * as DriveSync from "../lib/drive-sync.js";
 
 const state = {
   items: [],
@@ -49,6 +52,18 @@ const els = {
   toastToggle: el("toastToggle"),
   floatBtnToggle: el("floatBtnToggle"),
   clearAllBtn: el("clearAllBtn"),
+  syncStatus: el("syncStatus"),
+  syncStatusIcon: el("syncStatusIcon"),
+  syncStatusText: el("syncStatusText"),
+  syncSignedOut: el("syncSignedOut"),
+  syncSignedIn: el("syncSignedIn"),
+  syncClientIdInput: el("syncClientIdInput"),
+  syncSaveClientIdBtn: el("syncSaveClientIdBtn"),
+  syncSignInBtn: el("syncSignInBtn"),
+  syncSignOutBtn: el("syncSignOutBtn"),
+  syncNowBtn: el("syncNowBtn"),
+  syncAccountEmail: el("syncAccountEmail"),
+  syncLastAt: el("syncLastAt"),
 };
 
 function typeEmoji(type) {
@@ -70,6 +85,14 @@ function escapeHtml(s) {
 }
 function deckById(id) {
   return state.decks.find((d) => d.id === id);
+}
+
+function excerptFor(it) {
+  if (state.query.trim() && it.content) {
+    const snip = searchSnippet(it.content, state.query);
+    if (snip) return snip;
+  }
+  return it.excerpt || it.content || "";
 }
 
 async function loadAll() {
@@ -165,12 +188,8 @@ function scopedItems(applyQuery = true) {
   if (state.view === "pinned") list = list.filter((i) => i.pinned);
   else if (state.view !== "all") list = list.filter((i) => i.deckId === state.view);
   if (state.activeTag) list = list.filter((i) => (i.tags || []).includes(state.activeTag));
-  if (applyQuery && state.query) {
-    const q = state.query;
-    list = list.filter((it) => {
-      const hay = `${it.title} ${it.excerpt} ${it.content} ${it.note} ${(it.tags || []).join(" ")} ${it.domain}`.toLowerCase();
-      return hay.includes(q);
-    });
+  if (applyQuery && state.query.trim()) {
+    list = fullTextSearch(list, state.query);
   }
   return list;
 }
@@ -215,7 +234,7 @@ function renderGrid() {
       <div class="item-thumb-wrap">${thumbContent}</div>
       <div class="item-info">
         <div class="item-title">${escapeHtml(it.title || it.url || "Untitled")}</div>
-        <div class="item-excerpt">${escapeHtml(it.excerpt || it.content || "")}</div>
+        <div class="item-excerpt">${escapeHtml(excerptFor(it))}</div>
         <div class="tag-row">${(it.tags || []).slice(0, 4).map((t) => `<span class="tag-mini">#${escapeHtml(t)}</span>`).join("")}</div>
         <div class="item-footer">
           <span class="deck-badge" style="background:${deck?.color || "#8895A7"}">${deck?.icon || "📥"} ${deck?.name || "Inbox"}</span>
@@ -271,7 +290,7 @@ els.bulkMoveSelect.addEventListener("change", async (e) => {
 
 // Search / sort / view toggle
 els.searchInput.addEventListener("input", (e) => {
-  state.query = e.target.value.toLowerCase();
+  state.query = e.target.value;
   renderGrid();
 });
 els.sortSelect.addEventListener("change", (e) => {
@@ -476,13 +495,99 @@ els.importFile.addEventListener("change", async (e) => {
 });
 
 // live updates from background
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.type === "KIPI_ITEM_SAVED") loadAll();
+ext.runtime.onMessage.addListener((msg) => {
+  if (msg?.type === "KIPI_ITEM_SAVED" || msg?.type === "KIPI_SYNCED") loadAll();
 });
-chrome.storage.onChanged.addListener((changes, area) => {
+ext.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && (changes[Storage.KEYS.ITEMS] || changes[Storage.KEYS.DECKS])) {
     loadAll();
   }
 });
 
+// ---- Google Drive sync UI ----
+function timeAgoShort(ts) {
+  if (!ts) return "";
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return new Date(ts).toLocaleString();
+}
+
+async function refreshSyncUI() {
+  const signedIn = await DriveSync.isSignedIn();
+  const account = await DriveSync.getAccount();
+  const lastSync = await DriveSync.getLastSyncAt();
+
+  els.syncSignedOut.classList.toggle("hidden", signedIn);
+  els.syncSignedIn.classList.toggle("hidden", !signedIn);
+
+  if (signedIn) {
+    els.syncStatus.className = "sync-status connected";
+    els.syncStatusIcon.textContent = "☁️";
+    els.syncStatusText.textContent = `Synced ${timeAgoShort(lastSync) || ""}`.trim();
+    els.syncAccountEmail.textContent = account?.email ? `Signed in as ${account.email}` : "Signed in";
+    els.syncLastAt.textContent = lastSync ? `Last synced: ${timeAgoShort(lastSync)}` : "Not synced yet — click Sync now.";
+  } else {
+    els.syncStatus.className = "sync-status";
+    els.syncStatusIcon.textContent = "🔌";
+    els.syncStatusText.textContent = "Sync: off";
+  }
+
+  const clientId = await DriveSync.getClientId();
+  if (clientId) els.syncClientIdInput.value = clientId;
+}
+
+els.syncStatus.addEventListener("click", () => els.settingsBtn.click());
+
+els.syncSaveClientIdBtn.addEventListener("click", async () => {
+  const val = els.syncClientIdInput.value.trim();
+  if (!val) return;
+  await DriveSync.setClientId(val);
+  els.syncSaveClientIdBtn.textContent = "✅ Saved";
+  setTimeout(() => (els.syncSaveClientIdBtn.textContent = "Save client ID"), 1200);
+});
+
+els.syncSignInBtn.addEventListener("click", async () => {
+  els.syncSignInBtn.disabled = true;
+  els.syncSignInBtn.textContent = "Connecting…";
+  try {
+    await DriveSync.signIn();
+    await DriveSync.syncNow();
+    await refreshSyncUI();
+    await loadAll();
+  } catch (e) {
+    alert("Could not sign in: " + e.message);
+  } finally {
+    els.syncSignInBtn.disabled = false;
+    els.syncSignInBtn.textContent = "🔐 Sign in with Google & enable sync";
+  }
+});
+
+els.syncNowBtn.addEventListener("click", async () => {
+  els.syncNowBtn.disabled = true;
+  els.syncNowBtn.textContent = "Syncing…";
+  try {
+    await DriveSync.syncNow();
+    await refreshSyncUI();
+    await loadAll();
+  } catch (e) {
+    alert("Sync failed: " + e.message + "\n\nTry signing in again from Settings.");
+  } finally {
+    els.syncNowBtn.disabled = false;
+    els.syncNowBtn.textContent = "🔄 Sync now";
+  }
+});
+
+els.syncSignOutBtn.addEventListener("click", async () => {
+  if (!confirm("Disconnect Google Drive sync? Your local items stay on this device.")) return;
+  await DriveSync.signOut();
+  await refreshSyncUI();
+});
+
+els.settingsBtn.addEventListener("click", refreshSyncUI);
+
 loadAll();
+refreshSyncUI();

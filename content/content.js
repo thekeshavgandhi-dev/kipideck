@@ -12,10 +12,10 @@
   let lastSelectionText = "";
   let settingsCache = { showFloatingButton: true };
 
-  chrome.storage?.local?.get("kipi_settings").then((res) => {
+  browser.storage?.local?.get("kipi_settings").then((res) => {
     if (res?.kipi_settings) settingsCache = res.kipi_settings;
   });
-  chrome.storage?.onChanged?.addListener((changes) => {
+  browser.storage?.onChanged?.addListener((changes) => {
     if (changes.kipi_settings) settingsCache = changes.kipi_settings.newValue;
   });
 
@@ -46,9 +46,15 @@
       e.preventDefault();
       e.stopPropagation();
       const text = lastSelectionText;
-      chrome.runtime.sendMessage({ type: "KIPI_SAVE_SELECTION", text }, (res) => {
-        if (res?.ok) showToast("Saved selection to Kipideck");
-      });
+      // Note: browser.runtime.sendMessage is Promise-based everywhere (native
+      // on Firefox/Safari, polyfilled on Chromium) — never pass a callback,
+      // it won't be invoked on Firefox.
+      browser.runtime
+        .sendMessage({ type: "KIPI_SAVE_SELECTION", text })
+        .then((res) => {
+          if (res?.ok) showToast("Saved selection to Kipideck");
+        })
+        .catch(() => {});
       removeBtn();
     });
     document.documentElement.appendChild(btn);
@@ -84,7 +90,7 @@
   });
   window.addEventListener("scroll", () => removeBtn(), true);
 
-  chrome.runtime.onMessage.addListener((msg) => {
+  browser.runtime.onMessage.addListener((msg) => {
     if (msg?.type === "KIPI_TOAST") showToast(msg.text);
   });
 })();
