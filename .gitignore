@@ -1,0 +1,10 @@
+node_modules/
+*.zip
+.DS_Store
+
+# Next.js website build output (website/.gitignore also covers this,
+# duplicated here so it applies no matter where npm is run from)
+website/.next/
+website/out/
+website/.vercel/
+*.tsbuildinfo

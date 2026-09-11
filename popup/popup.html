@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kipideck</title>
+<link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img src="../icons/icon32.png" alt="" />
+        <span>Kipideck</span>
+      </div>
+      <button id="openLibraryBtn" class="icon-btn" title="Open full library">⤢</button>
+    </header>
+
+    <div class="quick-actions">
+      <button id="savePageBtn" class="primary-btn">
+        <span class="ico">📌</span> Save this page
+      </button>
+      <button id="saveNoteBtn" class="secondary-btn" title="Jot a quick note">✍️ Note</button>
+    </div>
+
+    <div id="noteBox" class="note-box hidden">
+      <textarea id="noteInput" rows="3" placeholder="Type a quick thought or reminder…"></textarea>
+      <div class="note-box-actions">
+        <button id="noteCancelBtn" class="ghost-btn">Cancel</button>
+        <button id="noteSaveBtn" class="primary-btn small">Save note</button>
+      </div>
+    </div>
+
+    <div class="search-row">
+      <input id="searchInput" type="search" placeholder="Search your Kipideck…" />
+    </div>
+
+    <nav id="deckChips" class="deck-chips"></nav>
+
+    <main id="itemsList" class="items-list">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-emoji">📭</div>
+        <p>Nothing saved yet.</p>
+        <p class="muted">Right-click anything on a page → <strong>Save to Kipi</strong>.</p>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <span id="itemCount" class="muted"></span>
+      <a href="#" id="openLibraryLink">Open full library →</a>
+    </footer>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

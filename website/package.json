@@ -1,0 +1,20 @@
+{
+  "name": "kipideck-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Marketing & docs site for Kipideck — deployed on Vercel.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "16.3.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
