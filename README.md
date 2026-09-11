@@ -6,12 +6,19 @@ Kipideck is a browser extension for **Chrome, Edge, Brave, Opera, and
 Firefox**. While you're browsing, whenever you see something worth keeping —
 right-click it and choose **Save to Kipi**. Kipideck grabs the item *and*
 where it came from, figures out which "deck" it belongs in, tags it, indexes
-its full text so you can search it later, and files it away. Turn on sync
-and the same library follows you to every browser and device you use,
-through your own Google Drive — no account with us, no server of ours, ever.
+its full text so you can search it later, and files it away. Optionally turn
+on sync and the same library follows you to every browser and device you
+use, through your own Google Drive — no account with us, no server of ours, ever.
+
+> **Local storage is the default and first priority.** Everything is saved
+> to your browser's local storage the instant you install Kipideck — no
+> sign-up, no internet connection needed, nothing to configure. Google
+> Drive sync (below) is a completely optional extra you can turn on later
+> from Settings; leaving it off changes nothing about how saving works.
 
 A live marketing/docs site for this project lives in [`website/`](website/)
-and is meant to be deployed on **Vercel** (see [Hosting](#hosting--deployment) below).
+(a Next.js app) and is meant to be deployed on **Vercel** (see [Hosting](#hosting--deployment) below).
+
 
 ---
 
@@ -180,7 +187,7 @@ kipideck/
 ├── icons/                 Extension icons (16/32/48/128)
 ├── docs/
 │   └── GOOGLE_SYNC_SETUP.md  Step-by-step Google Cloud Console setup for sync
-├── website/               Static marketing/docs site (deploy target: Vercel)
+├── website/               Next.js marketing/docs site (deploy target: Vercel)
 └── dist/                  Packaged .zip of the extension (generated, git-ignored-friendly)
 ```
 
@@ -197,15 +204,18 @@ kipideck/
 **The landing website (optional, for local preview):**
 ```bash
 cd website
-python3 -m http.server 8080
-# open http://localhost:8080
+npm install
+npm run dev
+# open http://localhost:3000
 ```
 
 ## Hosting & deployment
 
-- **Website → Vercel.** The `website/` folder is a plain static site (no
-  build step, no backend) — import this repo into Vercel, set the project's
-  **Root Directory** to `website`, and deploy. Full instructions in
+- **Website → Vercel.** The `website/` folder is a Next.js app (App Router,
+  fully static-prerendered — no backend calls) — import this repo into
+  Vercel, set the project's **Root Directory** to `website`, and deploy.
+  Vercel auto-detects Next.js and needs no extra configuration or
+  environment variables. Full instructions in
   [`website/README.md`](website/README.md).
 - **Sync backend → none needed.** Because sync rides on each user's own
   Google Drive app-data folder, there is nothing of ours to deploy, scale,
