@@ -1,6 +1,7 @@
 // background/background.js — Kipideck background script
-// Owns the right-click context menus, keyboard shortcuts, the capture +
-// classify + store pipeline, and the periodic Google Drive sync tick.
+// Owns the one-item "Save to Kipi" right-click menu, keyboard shortcuts,
+// the capture + classify + store pipeline, and the periodic Google Drive
+// sync tick.
 // Uses `ext` (see lib/compat.js) everywhere instead of raw chrome.* / browser.*
 // so this exact file runs unmodified on Chrome, Edge, Brave, Opera, and
 // Firefox. Declared with "type": "module" AND listed in manifest.background.scripts
@@ -13,13 +14,10 @@ import { extractPageText } from "../lib/extract.js";
 import * as DriveSync from "../lib/drive-sync.js";
 
 const MENU = {
-  ROOT: "kipi_root",
-  SAVE_PAGE: "kipi_save_page",
-  SAVE_LINK: "kipi_save_link",
-  SAVE_SELECTION: "kipi_save_selection",
-  SAVE_IMAGE: "kipi_save_image",
-  SAVE_VIDEO: "kipi_save_video",
-  OPEN_LIBRARY: "kipi_open_library",
+  // One single menu item — no sub-menus, no "what do you want to save?".
+  // Whatever the user right-clicked gets saved in that one click; the right
+  // context is detected in the onClicked listener below.
+  SAVE: "kipi_save",
 };
 
 const SYNC_ALARM = "kipi-periodic-sync";
@@ -69,50 +67,8 @@ async function buildContextMenus() {
   }
   const menus = [
     {
-      id: MENU.ROOT,
+      id: MENU.SAVE,
       title: "Save to Kipi",
-      contexts: ["page", "selection", "link", "image", "video"],
-    },
-    {
-      id: MENU.SAVE_SELECTION,
-      parentId: MENU.ROOT,
-      title: 'Save selection: "%s"',
-      contexts: ["selection"],
-    },
-    {
-      id: MENU.SAVE_LINK,
-      parentId: MENU.ROOT,
-      title: "Save this link",
-      contexts: ["link"],
-    },
-    {
-      id: MENU.SAVE_IMAGE,
-      parentId: MENU.ROOT,
-      title: "Save this image",
-      contexts: ["image"],
-    },
-    {
-      id: MENU.SAVE_VIDEO,
-      parentId: MENU.ROOT,
-      title: "Save this video",
-      contexts: ["video"],
-    },
-    {
-      id: MENU.SAVE_PAGE,
-      parentId: MENU.ROOT,
-      title: "Save this page (full text, for search)",
-      contexts: ["page", "image", "video", "link", "selection"],
-    },
-    {
-      id: "kipi_sep",
-      parentId: MENU.ROOT,
-      type: "separator",
-      contexts: ["page", "selection", "link", "image", "video"],
-    },
-    {
-      id: MENU.OPEN_LIBRARY,
-      parentId: MENU.ROOT,
-      title: "Open Kipideck library",
       contexts: ["page", "selection", "link", "image", "video"],
     },
   ];
@@ -194,10 +150,36 @@ async function maybeSyncAfterSave() {
   }
 }
 
+function normalizeSelectionText(text) {
+  return (text || "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 async function captureAndSave({ type, tab, info }) {
   const meta = tab?.id != null ? await getPageMeta(tab.id) : {};
   const pageUrl = info?.pageUrl || tab?.url || meta.url || "";
   const domain = hostnameOf(pageUrl);
+
+  // Selections auto-save the moment you finish highlighting them, so a
+  // right-click "Save to Kipi" on the very same text seconds later is a
+  // double-save — skip it (checked only for selections; page saves stay
+  // always allowed on purpose).
+  if (type === "selection") {
+    const selText = info?.selectionText || meta.selectionText || "";
+    const norm = normalizeSelectionText(selText);
+    if (norm) {
+      const items = await Storage.getItems();
+      const dup = items
+        .slice(0, 100)
+        .find(
+          (i) =>
+            i.type === "selection" &&
+            i.sourceUrl === pageUrl &&
+            normalizeSelectionText(i.content) === norm &&
+            Date.now() - i.createdAt < 60 * 1000
+        );
+      if (dup) return { saved: null, skipped: true };
+    }
+  }
 
   let item = {
     type,
@@ -265,24 +247,29 @@ async function captureAndSave({ type, tab, info }) {
 
   ext.runtime.sendMessage({ type: "KIPI_ITEM_SAVED", item: saved }).catch(() => {});
   maybeSyncAfterSave();
-  return saved;
+  return { saved, skipped: false };
 }
 
 ext.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId === MENU.OPEN_LIBRARY) {
-    ext.tabs.create({ url: ext.runtime.getURL("library/library.html") });
-    return;
+  if (info.menuItemId !== MENU.SAVE) return;
+  // No menu to pick from — just save whatever was right-clicked. Image,
+  // video and link targets win over a lingering selection; anything else
+  // saves the whole page. Selections/images/links always keep the page
+  // they were found on as their reference (see captureAndSave).
+  const ctx = info.contexts || [];
+  let type;
+  if (ctx.includes("image")) type = "image";
+  else if (ctx.includes("video")) type = "video";
+  else if (ctx.includes("link")) type = "link";
+  else if (ctx.includes("selection")) type = "selection";
+  else type = "page";
+
+  const res = await captureAndSave({ type, tab, info });
+  if (res?.skipped && tab?.id != null) {
+    ext.tabs
+      .sendMessage(tab.id, { type: "KIPI_TOAST", text: "Already in your Kipideck" })
+      .catch(() => {});
   }
-  const map = {
-    [MENU.SAVE_PAGE]: "page",
-    [MENU.SAVE_LINK]: "link",
-    [MENU.SAVE_SELECTION]: "selection",
-    [MENU.SAVE_IMAGE]: "image",
-    [MENU.SAVE_VIDEO]: "video",
-  };
-  const type = map[info.menuItemId];
-  if (!type) return;
-  await captureAndSave({ type, tab, info });
 });
 
 ext.commands.onCommand.addListener(async (command) => {
@@ -301,16 +288,16 @@ ext.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     if (msg?.type === "KIPI_SAVE_PAGE") {
       const tab = sender.tab || (await ext.tabs.query({ active: true, currentWindow: true }))[0];
-      const saved = await captureAndSave({ type: "page", tab, info: {} });
-      sendResponse({ ok: true, item: saved });
+      const res = await captureAndSave({ type: "page", tab, info: {} });
+      sendResponse({ ok: !res?.skipped, skipped: !!res?.skipped, item: res?.saved || null });
     } else if (msg?.type === "KIPI_SAVE_SELECTION") {
       const tab = sender.tab || (await ext.tabs.query({ active: true, currentWindow: true }))[0];
-      const saved = await captureAndSave({
+      const res = await captureAndSave({
         type: "selection",
         tab,
         info: { selectionText: msg.text, pageUrl: tab?.url },
       });
-      sendResponse({ ok: true, item: saved });
+      sendResponse({ ok: !res?.skipped, skipped: !!res?.skipped, item: res?.saved || null });
     } else if (msg?.type === "KIPI_SAVE_NOTE") {
       const tab = sender.tab || (await ext.tabs.query({ active: true, currentWindow: true }))[0];
       const domain = hostnameOf(tab?.url || "");

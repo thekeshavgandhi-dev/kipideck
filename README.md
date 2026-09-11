@@ -40,7 +40,8 @@ A live marketing/docs site for this project lives in [`website/`](website/)
 
 ## What you can save
 
-Right-click on any of these and pick **Save to Kipi**:
+Right-click on anything and click **Save to Kipi** — that's the whole
+interaction, no sub-menus. Kipideck figures out what you pointed at:
 
 | You right-click on... | What gets saved |
 |---|---|
@@ -51,12 +52,16 @@ Right-click on any of these and pick **Save to Kipi**:
 | A video element | The video URL, plus a reference back to the page |
 
 There's also:
-- A **floating "Save to Kipi" bubble** that pops up automatically whenever
-  you select text on a page (no right-click needed).
-- A **toolbar popup** with a "Save this page" button and a "Note" button
-  for jotting a quick thought without leaving the page.
-- Keyboard shortcuts: `Ctrl+Shift+K` (`Cmd+Shift+K` on Mac) to quick-save the
-  current page, `Ctrl+Shift+L` / `Cmd+Shift+L` to open the full library.
+- **Selection auto-save** — highlight any text on a page and it's saved
+  automatically, with the page it came from as its reference. No clicking,
+  no confirming (toggle it in Library → Settings). Picking the same text
+  again within a short window is ignored, so it never spams your library.
+- A **toolbar popup** with a "Save this page" button and a one-line quick
+  note field (press Enter to save) for jotting a thought without leaving the page.
+- Keyboard shortcuts: **`Space` then `K`** quick-saves the current page from
+  any website (a two-key combo that can't collide with browser shortcuts),
+  plus `Ctrl+Shift+K` (`Cmd+Shift+K` on Mac) to quick-save the current page
+  and `Ctrl+Shift+L` / `Cmd+Shift+L` to open the full library.
 
 ## How the auto-organizing works
 
@@ -159,8 +164,8 @@ Library — a dashboard with:
   copy its reference, pin it, or delete it
 - Multi-select + bulk move/delete
 - One-click **Export** (JSON backup) and **Import** (restore/migrate)
-- **Settings**: toggle auto-organize, the save toast, the selection bubble,
-  and manage Google Drive sync
+- **Settings**: toggle auto-organize, selection auto-save, and the save
+  toast, review the keyboard shortcuts, and manage Google Drive sync
 
 ## Project structure
 
@@ -170,7 +175,7 @@ kipideck/
 ├── background/
 │   └── background.js      Context menus, capture/classify/store pipeline, sync alarm
 ├── content/
-│   ├── content.js         Floating "Save to Kipi" bubble on text selection + toasts
+│   ├── content.js         Selection auto-save + Space→K quick-save + save toasts + website bridge
 │   └── content.css
 ├── lib/
 │   ├── compat.js          Cross-browser `ext` shim (Proxy over globalThis.browser)

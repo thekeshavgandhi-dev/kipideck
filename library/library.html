@@ -14,45 +14,55 @@
       <span>Kipideck</span>
     </div>
 
-    <button id="newDeckBtn" class="new-deck-btn">+ New deck</button>
-
-    <div class="nav-section">
+    <nav class="nav">
       <div class="nav-item active" data-deck="all">
         <span class="nav-ico">🗂️</span><span class="nav-label">All items</span><span class="nav-count" id="countAll"></span>
       </div>
       <div class="nav-item" data-deck="pinned">
-        <span class="nav-ico">📍</span><span class="nav-label">Pinned</span><span class="nav-count" id="countPinned"></span>
+        <span class="nav-ico">📌</span><span class="nav-label">Pinned</span><span class="nav-count" id="countPinned"></span>
       </div>
+    </nav>
+
+    <div class="deck-head">
+      <span class="nav-section-title">Decks</span>
+      <button id="newDeckBtn" class="new-deck-btn" title="New deck">＋</button>
+    </div>
+    <div id="deckList" class="nav deck-list"></div>
+
+    <div id="tagsSection" class="tags-section hidden">
+      <span class="nav-section-title">Tags</span>
+      <div id="tagCloud" class="tag-cloud"></div>
     </div>
 
-    <div class="nav-section-title">Decks</div>
-    <div id="deckList" class="nav-section"></div>
-
-    <div class="nav-section-title">Tags</div>
-    <div id="tagCloud" class="tag-cloud"></div>
-
-    <div class="sync-status" id="syncStatus">
-      <span id="syncStatusIcon">🔌</span>
-      <span id="syncStatusText">Sync: off</span>
-    </div>
-
-    <div class="sidebar-footer">
-      <button id="exportBtn" class="ghost-link">⬇ Export</button>
-      <button id="importBtn" class="ghost-link">⬆ Import</button>
-      <input type="file" id="importFile" accept="application/json" hidden />
-      <button id="settingsBtn" class="ghost-link">⚙ Settings</button>
+    <div class="sidebar-bottom">
+      <button id="syncStatus" class="sync-status" title="Sync status — click for Settings">
+        <span id="syncStatusIcon">🔌</span>
+        <span id="syncStatusText">Sync: off</span>
+      </button>
+      <div class="sidebar-footer">
+        <button id="exportBtn" class="tool-btn" title="Export everything as JSON">⬇</button>
+        <button id="importBtn" class="tool-btn" title="Import a JSON backup">⬆</button>
+        <button id="settingsBtn" class="tool-btn" title="Settings">⚙</button>
+        <input type="file" id="importFile" accept="application/json" hidden />
+      </div>
     </div>
   </aside>
 
   <main class="content">
     <header class="content-header">
-      <h1 id="viewTitle">All items</h1>
+      <div class="title-block">
+        <h1 id="viewTitle">All items</h1>
+        <div class="view-sub" id="viewSub"></div>
+      </div>
       <div class="header-actions">
-      <input id="searchInput" type="search" placeholder="Search everything — try tag:recipe or site:github.com" title="Full-text search across titles, saved page text, notes, tags and domains. Supports tag: and site: filters." />
-      <select id="sortSelect">
-          <option value="new">Newest first</option>
-          <option value="old">Oldest first</option>
-          <option value="az">Title A–Z</option>
+        <div class="search-wrap">
+          <span class="search-ico">🔍</span>
+          <input id="searchInput" type="search" placeholder="Search everything — try tag:recipe or site:github.com" title="Full-text search across titles, saved page text, notes, tags and domains. Supports tag: and site: filters." />
+        </div>
+        <select id="sortSelect" title="Sort items">
+          <option value="new">Newest</option>
+          <option value="old">Oldest</option>
+          <option value="az">A–Z</option>
         </select>
         <div class="view-toggle">
           <button id="gridViewBtn" class="active" title="Grid view">▦</button>
@@ -63,16 +73,20 @@
 
     <div id="bulkBar" class="bulk-bar hidden">
       <span id="bulkCount"></span>
-      <select id="bulkMoveSelect"><option value="">Move to deck…</option></select>
-      <button id="bulkDeleteBtn" class="danger-btn">Delete selected</button>
-      <button id="bulkClearBtn" class="ghost-link">Clear selection</button>
+      <span class="bulk-spacer"></span>
+      <select id="bulkMoveSelect" title="Move selected to a deck"><option value="">Move to deck…</option></select>
+      <button id="bulkDeleteBtn" class="danger-btn">Delete</button>
+      <button id="bulkClearBtn" class="ghost-link" title="Clear selection">✕</button>
     </div>
 
     <div id="itemsGrid" class="items-grid"></div>
     <div id="emptyState" class="empty-state hidden">
-      <div class="empty-emoji">📭</div>
+      <div class="empty-emoji">📌</div>
       <h3>Nothing here yet</h3>
-      <p>Right-click any page, link, image, or selected text and choose <strong>Save to Kipi</strong> — it'll show up here, auto-sorted.</p>
+      <p>
+        Right-click any page, link or image → <strong>Save to Kipi</strong>.<br />
+        Or just highlight some text — it saves itself, automatically.
+      </p>
     </div>
   </main>
 </div>
@@ -80,7 +94,7 @@
 <!-- Item detail / edit modal -->
 <div id="modalOverlay" class="modal-overlay hidden">
   <div class="modal">
-    <button id="modalClose" class="modal-close">✕</button>
+    <button id="modalClose" class="modal-close" title="Close">✕</button>
     <div id="modalBody"></div>
   </div>
 </div>
@@ -88,19 +102,21 @@
 <!-- New deck modal -->
 <div id="deckModalOverlay" class="modal-overlay hidden">
   <div class="modal small">
-    <button id="deckModalClose" class="modal-close">✕</button>
+    <button id="deckModalClose" class="modal-close" title="Close">✕</button>
     <h3>New deck</h3>
-    <div class="form-row">
-      <label>Icon</label>
-      <input id="deckIconInput" maxlength="2" value="🗂️" />
-    </div>
     <div class="form-row">
       <label>Name</label>
       <input id="deckNameInput" placeholder="e.g. Recipes" />
     </div>
-    <div class="form-row">
-      <label>Color</label>
-      <input id="deckColorInput" type="color" value="#7c5cfc" />
+    <div class="form-row two-col">
+      <div class="form-field">
+        <label>Icon</label>
+        <input id="deckIconInput" maxlength="2" value="🗂️" />
+      </div>
+      <div class="form-field">
+        <label>Color</label>
+        <input id="deckColorInput" type="color" value="#7c5cfc" />
+      </div>
     </div>
     <button id="deckSaveBtn" class="primary-btn">Create deck</button>
   </div>
@@ -109,20 +125,42 @@
 <!-- Settings modal -->
 <div id="settingsModalOverlay" class="modal-overlay hidden">
   <div class="modal small">
-    <button id="settingsModalClose" class="modal-close">✕</button>
+    <button id="settingsModalClose" class="modal-close" title="Close">✕</button>
     <h3>Settings</h3>
+
     <label class="switch-row">
-      <input type="checkbox" id="autoOrganizeToggle" />
-      <span>Auto-organize into decks &amp; tags</span>
+      <span class="switch"><input type="checkbox" id="autoOrganizeToggle" /><i></i></span>
+      <span class="switch-label">Auto-organize into decks &amp; tags</span>
     </label>
     <label class="switch-row">
-      <input type="checkbox" id="toastToggle" />
-      <span>Show save confirmation toast</span>
+      <span class="switch"><input type="checkbox" id="autoSaveToggle" /><i></i></span>
+      <span class="switch-label">Auto-save selected text (with the page as reference)</span>
     </label>
     <label class="switch-row">
-      <input type="checkbox" id="floatBtnToggle" />
-      <span>Show "Save to Kipi" bubble on text selection</span>
+      <span class="switch"><input type="checkbox" id="toastToggle" /><i></i></span>
+      <span class="switch-label">Show save confirmation toast</span>
     </label>
+
+    <div class="section-title">Shortcuts</div>
+    <div class="shortcut-list">
+      <div class="shortcut">
+        <span class="shortcut-keys"><kbd>Right-click</kbd></span>
+        <span>anything → <b>Save to Kipi</b></span>
+      </div>
+      <div class="shortcut">
+        <span class="shortcut-keys"><kbd>Space</kbd><kbd>K</kbd></span>
+        <span>save the current page</span>
+      </div>
+      <div class="shortcut">
+        <span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>K</kbd></span>
+        <span>save the current page</span>
+      </div>
+      <div class="shortcut">
+        <span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></span>
+        <span>open the library</span>
+      </div>
+    </div>
+
     <hr />
 
     <h3>Sync across devices &amp; browsers</h3>
@@ -146,11 +184,11 @@
       </div>
       <div class="muted small-text" id="syncLastAt"></div>
       <button id="syncNowBtn" class="secondary-btn-full">🔄 Sync now</button>
-      <button id="syncSignOutBtn" class="danger-btn" style="width:100%; margin-top:6px;">Disconnect Google Drive</button>
+      <button id="syncSignOutBtn" class="danger-btn full" style="margin-top:8px;">Disconnect Google Drive</button>
     </div>
 
     <hr />
-    <button id="clearAllBtn" class="danger-btn">Delete all items &amp; reset decks</button>
+    <button id="clearAllBtn" class="danger-btn full">Delete all items &amp; reset decks</button>
   </div>
 </div>
 
