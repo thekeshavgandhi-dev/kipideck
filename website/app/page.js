@@ -1,4 +1,6 @@
-const GITHUB_URL = "https://github.com/thekeshavgandhi-dev/kipideck";
+import DownloadButton from "./components/DownloadButton";
+import OpenDeckButton from "./components/OpenDeckButton";
+import VersionPill from "./components/VersionPill";
 
 export default function Home() {
   return (
@@ -14,9 +16,8 @@ export default function Home() {
             <a href="#how">How it works</a>
             <a href="#browsers">Browsers</a>
             <a href="#sync">Sync</a>
-            <a className="nav-cta" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-              View on GitHub
-            </a>
+            <a href="/deck">Open My Deck</a>
+            <DownloadButton label="⬇ Add to Chrome" className="nav-cta" />
           </nav>
         </div>
       </header>
@@ -36,12 +37,11 @@ export default function Home() {
             want it to follow you across browsers, through your own Google Drive.
           </p>
           <div className="hero-ctas">
-            <a className="btn btn-primary" href="#install">
-              ⬇ Add to your browser — it&apos;s free
-            </a>
-            <a className="btn btn-ghost" href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-              Read the source
-            </a>
+            <DownloadButton label="⬇ Add to Chrome — it's free" />
+            <OpenDeckButton />
+          </div>
+          <div className="version-row">
+            <VersionPill />
           </div>
           <div className="browser-row">
             <span>Works on</span>
@@ -155,7 +155,7 @@ export default function Home() {
         <h2>Built on web standards — runs everywhere</h2>
         <p className="section-lede">
           Kipideck is written against the standard <code>browser.*</code> WebExtensions API (via
-          Mozilla&apos;s official polyfill), not Chrome-only APIs — so the exact same codebase
+          Mozilla&apos;s official polyfill), not Chrome-only APIs — so the exact same download
           installs on:
         </p>
         <div className="grid grid-5 browsers-grid">
@@ -180,69 +180,122 @@ export default function Home() {
           in this picture at all.
         </p>
         <div className="hero-ctas center">
-          <a
-            className="btn btn-ghost"
-            href={`${GITHUB_URL}/blob/main/docs/GOOGLE_SYNC_SETUP.md`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a className="btn btn-ghost" href="/sync-setup">
             Read the sync setup guide →
           </a>
         </div>
       </section>
 
       <section id="install" className="section install">
-        <h2>Get Kipideck</h2>
+        <h2>Get Kipideck in under a minute</h2>
         <p className="section-lede">
-          Kipideck is currently distributed as source — load it as an unpacked extension in under
-          a minute, on any of these browsers:
+          Download the extension right here — no store account, no sign-up. One small file,
+          installs on every major browser.
         </p>
-        <div className="install-grid">
-          <div className="card">
-            <h3>Chrome / Edge / Brave / Opera</h3>
+
+        <div className="download-hero-card">
+          <div className="download-hero-text">
+            <div className="card-ico big">📦</div>
+            <div>
+              <h3>Kipideck for Chrome, Edge, Brave, Opera &amp; Firefox</h3>
+              <p className="muted">
+                Free forever. Works offline from the second it installs. Your saves stay on your
+                device unless you choose to sync.
+              </p>
+              <div className="version-row left">
+                <VersionPill />
+              </div>
+            </div>
+          </div>
+          <DownloadButton label="⬇ Download Kipideck — free" scrollTo="install-steps" />
+        </div>
+
+        <div id="install-steps" className="install-grid">
+          <div className="card" id="install-chrome">
+            <h3>🟢 Chrome / Edge / Brave / Opera</h3>
             <ol>
               <li>
-                Download or clone the{" "}
-                <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-                  GitHub repo
-                </a>
+                Click <strong>Download Kipideck</strong> above — a small{" "}
+                <code>kipideck-extension.zip</code> file saves to your computer.
               </li>
               <li>
-                Open <code>chrome://extensions</code> (or your browser&apos;s equivalent)
+                <strong>Unzip it</strong>: right-click → <em>Extract All…</em> (Windows) or
+                double-click it (Mac). You&apos;ll get a <code>kipideck</code> folder.
               </li>
               <li>
-                Enable <strong>Developer mode</strong>
+                Open <code>chrome://extensions</code> (or <code>edge://extensions</code>,{" "}
+                <code>brave://extensions</code>) and switch on{" "}
+                <strong>Developer mode</strong> (toggle, top-right).
               </li>
               <li>
-                Click <strong>Load unpacked</strong> → select the <code>kipideck</code> folder
+                Click <strong>Load unpacked</strong> and select the unzipped{" "}
+                <code>kipideck</code> folder.
+              </li>
+              <li>
+                Pin it: click the 🧩 puzzle icon → 📌 next to Kipideck. Done — right-click
+                anything → <strong>Save to Kipi</strong>!
               </li>
             </ol>
           </div>
-          <div className="card">
-            <h3>Firefox</h3>
+          <div className="card" id="install-firefox">
+            <h3>🦊 Firefox</h3>
             <ol>
               <li>
-                Download or clone the{" "}
-                <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-                  GitHub repo
-                </a>
+                Click <strong>Download Kipideck</strong> above and <strong>unzip</strong> the file
+                (double-click it) to get the <code>kipideck</code> folder.
               </li>
               <li>
-                Open <code>about:debugging#/runtime/this-firefox</code>
+                Open <code>about:debugging#/runtime/this-firefox</code> in Firefox.
               </li>
               <li>
-                Click <strong>Load Temporary Add-on…</strong>
+                Click <strong>Load Temporary Add-on…</strong> and pick{" "}
+                <code>manifest.json</code> inside the unzipped <code>kipideck</code> folder.
               </li>
               <li>
-                Select <code>kipideck/manifest.json</code>
+                Pin it to your toolbar and start saving with a right-click →{" "}
+                <strong>Save to Kipi</strong>.
               </li>
             </ol>
+            <p className="muted small">
+              Note: Firefox loads unpacked add-ons temporarily, so you&apos;ll re-add it after a
+              browser restart — until the signed store version ships.
+            </p>
           </div>
         </div>
-        <p className="muted small">
-          Store listings (Chrome Web Store / Firefox Add-ons) coming soon — this page will link to
-          them once published.
-        </p>
+
+        <div className="how-to-open">
+          <h3>Already installed? Open your deck 👇</h3>
+          <p className="muted">
+            Your deck lives inside the extension — your saved items on this device, plus anything
+            synced from your other browsers. One click opens it:
+          </p>
+          <div className="hero-ctas center">
+            <OpenDeckButton label="📂 Open My Deck" />
+          </div>
+        </div>
+
+        <details className="troubleshoot">
+          <summary>Download or install not working? Quick fixes →</summary>
+          <ul>
+            <li>
+              <strong>Can&apos;t find Developer mode?</strong> On the extensions page{" "}
+              <code>chrome://extensions</code>, it&apos;s a toggle in the very top-right corner.
+            </li>
+            <li>
+              <strong>&quot;Manifest file is missing&quot; error?</strong> You selected the{" "}
+              <code>.zip</code> itself or the wrong folder — unzip first, then select the folder
+              that directly contains <code>manifest.json</code>.
+            </li>
+            <li>
+              <strong>Download blocked?</strong> Some networks block <code>.zip</code> files — try
+              another browser or network, the file is tiny (under 100 KB).
+            </li>
+            <li>
+              <strong>Want the one-click store install?</strong> Chrome Web Store / Firefox Add-ons
+              listings are coming soon — this page will link to them once published.
+            </li>
+          </ul>
+        </details>
       </section>
 
       <footer className="footer">
@@ -251,12 +304,14 @@ export default function Home() {
             <img src="/assets/logo.png" alt="" />
             Kipideck
           </div>
+          <nav className="footer-links">
+            <a href="/deck">Open My Deck</a>
+            <a href="/sync-setup">Sync setup guide</a>
+            <a href="#install">Install</a>
+          </nav>
           <p className="muted">
-            Save anything. It organizes itself. Built in the open on{" "}
-            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-              GitHub
-            </a>
-            .
+            Save anything. It organizes itself. Private by design — your saves stay on your device
+            unless you turn on Google Drive sync.
           </p>
         </div>
       </footer>

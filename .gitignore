@@ -1,5 +1,9 @@
 node_modules/
 *.zip
+# ...except the ready-to-download extension package served by the website.
+# It is regenerated on every Vercel build (website `prebuild` script), but a
+# committed copy guarantees /downloads works even if packaging ever fails.
+!website/public/downloads/*.zip
 .DS_Store
 
 # Next.js website build output (website/.gitignore also covers this,

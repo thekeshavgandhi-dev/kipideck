@@ -7,12 +7,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "package-extension": "node scripts/build-extension-zip.mjs",
+    "prebuild": "node scripts/build-extension-zip.mjs",
+    "predev": "node scripts/build-extension-zip.mjs"
   },
   "dependencies": {
     "next": "16.3.5",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "archiver": "^7.0.1"
   },
   "engines": {
     "node": ">=20.9.0"
