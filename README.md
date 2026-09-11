@@ -217,6 +217,15 @@ npm run dev
   Vercel auto-detects Next.js and needs no extra configuration or
   environment variables. Full instructions in
   [`website/README.md`](website/README.md).
+  - The site serves the extension as a **direct `.zip` download**
+    (`/downloads/kipideck-extension.zip`, auto-packaged from this repo at
+    build time by `website/scripts/build-extension-zip.mjs`), so visitors
+    install straight from the website — no repo links anywhere on the site.
+  - Its **Open My Deck** buttons use a tiny website → extension bridge
+    (`content/content.js` sets a page marker and answers `postMessage`
+    pings; `background.js` handles `KIPI_OPEN_LIBRARY`) to open the
+    visitor's *own* library (their local items + their Drive-synced items).
+    See `website/app/components/kipideck-bridge.js`.
 - **Sync backend → none needed.** Because sync rides on each user's own
   Google Drive app-data folder, there is nothing of ours to deploy, scale,
   or pay for to support multi-device sync — see

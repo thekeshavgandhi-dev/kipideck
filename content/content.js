@@ -93,4 +93,70 @@
   browser.runtime.onMessage.addListener((msg) => {
     if (msg?.type === "KIPI_TOAST") showToast(msg.text);
   });
+
+  // ---------------------------------------------------------------------------
+  // Kipideck website bridge — lets the Vercel-hosted marketing site
+  // (kipideck.vercel.app) detect that the extension is installed and ask it to
+  // open the user's own library (local items + Google Drive synced items).
+  // The website itself can never read extension data directly (different
+  // origin / storage) — it just sends a window message, this content script
+  // forwards it to the background script, and the background opens
+  // library/library.html in a new tab. No GitHub or server involved.
+  // ---------------------------------------------------------------------------
+  try {
+    const FLAG = "__KIPIDECK_INSTALLED__";
+    if (!window[FLAG]) {
+      window[FLAG] = true;
+      document.documentElement.setAttribute("data-kipideck-installed", "true");
+      let extVersion = "";
+      try {
+        extVersion = browser.runtime.getManifest ? browser.runtime.getManifest().version : "";
+      } catch {
+        /* getManifest may be unavailable in some contexts */
+      }
+      window.dispatchEvent(
+        new CustomEvent("kipideck:ready", { detail: { version: extVersion } })
+      );
+
+      window.addEventListener("message", (event) => {
+        if (event.source !== window) return;
+        const msg = event.data;
+        if (!msg || msg.source !== "kipideck-website") return;
+
+        if (msg.type === "KIPIDECK_PING") {
+          window.postMessage(
+            { source: "kipideck-extension", type: "KIPIDECK_PONG", version: extVersion },
+            "*"
+          );
+        } else if (msg.type === "KIPIDECK_OPEN_LIBRARY") {
+          browser.runtime.sendMessage({ type: "KIPI_OPEN_LIBRARY" }).catch(() => {});
+          window.postMessage(
+            { source: "kipideck-extension", type: "KIPIDECK_OPENING" },
+            "*"
+          );
+        } else if (msg.type === "KIPIDECK_GET_COUNT") {
+          browser.runtime
+            .sendMessage({ type: "KIPI_GET_COUNT" })
+            .then((res) => {
+              window.postMessage(
+                {
+                  source: "kipideck-extension",
+                  type: "KIPIDECK_COUNT",
+                  count: res?.count ?? 0,
+                },
+                "*"
+              );
+            })
+            .catch(() => {
+              window.postMessage(
+                { source: "kipideck-extension", type: "KIPIDECK_COUNT", count: 0 },
+                "*"
+              );
+            });
+        }
+      });
+    }
+  } catch {
+    /* website bridge is best-effort — never break the save bubble */
+  }
 })();

@@ -317,6 +317,12 @@ ext.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     } else if (msg?.type === "KIPI_GET_COUNT") {
       const items = await Storage.getItems();
       sendResponse({ count: items.length });
+    } else if (msg?.type === "KIPI_OPEN_LIBRARY") {
+      // Sent by the content-script website bridge when the user clicks
+      // "Open My Deck" on the Vercel site — opens THEIR library with
+      // THEIR local + Drive-synced items.
+      ext.tabs.create({ url: ext.runtime.getURL("library/library.html") });
+      sendResponse({ ok: true });
     } else if (msg?.type === "KIPI_SYNC_NOW") {
       try {
         const result = await DriveSync.syncNow();

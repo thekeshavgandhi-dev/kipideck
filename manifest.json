@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Kipideck — Save & Organize Anything",
   "short_name": "Kipideck",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Right-click anything on the web — a page, a link, some text, or an image — and save it to Kipideck. Auto-sorted into decks, fully searchable, and synced across every browser via your own Google Drive.",
   "default_locale": "en",
   "icons": {
@@ -23,14 +23,23 @@
   },
   "background": {
     "service_worker": "background/background.js",
-    "scripts": ["background/background.js"],
+    "scripts": [
+      "background/background.js"
+    ],
     "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["lib/browser-polyfill.js", "content/content.js"],
-      "css": ["content/content.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "lib/browser-polyfill.js",
+        "content/content.js"
+      ],
+      "css": [
+        "content/content.css"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }
@@ -55,11 +64,17 @@
   "options_page": "library/library.html",
   "commands": {
     "quick-save": {
-      "suggested_key": { "default": "Ctrl+Shift+K", "mac": "Command+Shift+K" },
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
       "description": "Save the current page to Kipideck"
     },
     "open-library": {
-      "suggested_key": { "default": "Ctrl+Shift+L", "mac": "Command+Shift+L" },
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
       "description": "Open the Kipideck library"
     }
   },
@@ -68,5 +83,13 @@
       "id": "kipideck@example-addon.org",
       "strict_min_version": "115.0"
     }
+  },
+  "externally_connectable": {
+    "matches": [
+      "https://kipideck.vercel.app/*",
+      "https://*.vercel.app/*",
+      "http://localhost:*/*",
+      "http://127.0.0.1:*/*"
+    ]
   }
 }
