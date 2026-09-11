@@ -1,0 +1,202 @@
+# Kipideck — Ideas to Beat Everyone
+
+**Companion:** [`RESEARCH.md`](./RESEARCH.md) — full competitor analysis, review synthesis, comparison matrix.
+**Date:** 2026-09-11 · Living doc: check off `✅` as shipped.
+
+> Strategy in one line: **own trust** (local-first, free, shutdown-proof), **match capture**,
+> **win find-it-again with free AI**, and **absorb adjacent jobs** (tabs, reader, highlights, audio)
+> that competitors charge $5–13/mo for.
+
+**Scoring:** Impact 🔥×1–5 (users won / churn prevented) · Effort XS–XL · `R§x` = evidence in RESEARCH.md.
+
+---
+
+## P0 — Foundations (do first; everything else multiplies on these)
+
+- [ ] **I-01 · Publish to the Chrome Web Store + Edge Add-ons + Firefox AMO** 🔥🔥🔥🔥🔥 · Effort M
+  Problem: sideloading ("Load unpacked", Firefox temp add-on lost on restart) kills conversion and trust (R§1.3).
+  Build: store listings with screenshots/video, privacy self-certification, reduce `<all_urls>` to `activeTab` + optional host permission to pass review smoothly.
+  Beats: the #1 reason anyone picks a competitor at install time. Metric: install conversion rate, store rating ≥4.5.
+- [ ] **I-02 · One-click sync that normals can use** 🔥🔥🔥🔥🔥 · Effort M–L
+  Problem: BYO OAuth client-ID setup ≈ 0% completion by non-developers; hourly token expiry (`SESSION_EXPIRED`) (R§1.3).
+  Build: ship a first-party OAuth client (free tier of Google Cloud; Drive appData scope is non-sensitive-ish) with one "Sign in with Google" button; keep BYO-client as advanced fallback; silent token refresh via short-lived re-auth or move to a tiny refresh-token-safe flow. Keep the "no Kipideck server" guarantee — tokens stay in the browser.
+  Beats: Raindrop/Matter (account-locked clouds) on privacy + convenience simultaneously. Metric: % of installs with sync on.
+- [ ] **I-03 · First-run onboarding (60 seconds to first save)** 🔥🔥🔥🔥 · Effort S
+  Problem: empty library + no guidance = bounce; competitors (even bad ones) onboard (R§4.12).
+  Build: welcome page on install: 1-click "save this demo page", deck tour, "import from…" shortcuts, keyboard shortcut card. Pre-seed 3 sample items (deletable) so search/decks demo themselves.
+  Metric: D1 save rate, D7 retention.
+- [ ] **I-04 · Kill the small trust leaks** 🔥🔥🔥 · Effort XS–S
+  Problem: favicons via `google.com/s2` (tracks every domain, fails offline); junk auto-tags (`domain.split('.')[0]` → tags like "the"); no duplicate detection (R§1.3).
+  Build: local favicon cache (fetch once, store blob, fallback to letter-icon); smarter tag hygiene (deny-list, max 5, de-dupe vs title words); "already saved" detection with "open existing" prompt.
+  Beats: privacy story becomes airtight — required for the §5.1 positioning.
+
+## P1 — Capture the refugee wave (highest ROI growth, do within weeks)
+
+- [ ] **I-05 · Pocket HTML + Instapaper CSV + Raindrop + browser-bookmark importers** 🔥🔥🔥🔥🔥 · Effort S–M
+  Problem: millions mid-migration; winners all ship importers (Readwise 6/6, Matter 2-tap, Raindrop/Instapaper/Wallabag all accept Pocket HTML) (R§5.2). Kipideck has zero.
+  Build: Library → Import: Pocket `.html`/`.csv`, Instapaper export, Raindrop backup, Chrome/Firefox bookmark HTML, generic URL list. Preserve tags, dates, read-state; auto-run classifier on import; show "N items rescued" celebration.
+  Metric: imports/week; % of new users arriving via "Pocket alternative" pages.
+- [ ] **I-06 · "Welcome, Pocket & Omnivore refugees" landing + SEO pages** 🔥🔥🔥🔥 · Effort S
+  Problem: Matter/Readwise/Wallabag openly campaign for refugees; Kipideck invisible (R§3.1).
+  Build: `/pocket-alternative`, `/omnivore-alternative`, `/raindrop-alternative` pages: honest comparison table (reuse R§6), 3-step migration guide, "your data can't be deleted by us" guarantee. Submit to alternative-to directories.
+  Metric: organic signups/installs from these pages.
+- [ ] **I-07 · "Shutdown-proof" guarantee page + full export (JSON/HTML/Markdown)** 🔥🔥🔥🔥 · Effort S
+  Problem: post-shutdown, users ask "what happens if you die?" before asking about features; mymind's thin export is hated (R§4.2/4.11).
+  Build: public pledge — readable local format, one-click export of *everything incl. full text + notes + tags*, documented schema, "works forever offline even if we vanish". Export to portable HTML (Netscape bookmark format = imports everywhere) + Markdown vault.
+  Beats: literally every cloud competitor on the question users now ask first.
+
+## P2 — Win "consume" (reader, highlights, audio, recall)
+
+- [ ] **I-08 · Distraction-free Reader View** 🔥🔥🔥🔥🔥 · Effort M
+  Problem: Kipideck saves full text but never renders it cleanly; every read-it-later rival leads with a reader (R§1.3).
+  Build: Mozilla Readability (vendored, offline) → clean article render inside Library; fonts, themes, line-width; saves scroll position; "parsed from your saved copy" (works offline, paywall-safe since captured post-render).
+  Beats: Instapaper's calm + Raindrop's reader, free, offline. Metric: % of items opened in reader.
+- [ ] **I-09 · In-page highlighter + notes that persist** 🔥🔥🔥🔥 · Effort M–L
+  Problem: Diigo/Glasp/Weava/Hypothesis own annotation; Kipideck turns selections into detached items (R§3.4).
+  Build: select → highlight (4 colors) + optional note, stored against URL + text quote (fuzzy re-attach like Hypothesis); highlights searchable, listed per-item, exportable. Reliability first — Weava's vanishing highlights are the cautionary tale; store locally, sync via existing tombstone-safe merge.
+  Beats: Weava (reliability), Glasp (privacy + free private highlights), Diigo (modern UX).
+- [ ] **I-10 · Listen to your saves (TTS)** 🔥🔥🔥🔥 · Effort S–M
+  Problem: commuters' top ask; Instapaper TTS crashes, Matter playback wobbles (R§4.15).
+  Build: free tier = offline OS voices (`speechSynthesis`, $0 cost); queue + playback position saved; optional upgrade path to premium voices later. Works from Reader View + popup.
+  Beats: good-enough audio free vs everyone's paywalled/crashy audio.
+- [ ] **I-11 · Resurfacing: daily digest + "stumble" + smart reminders** 🔥🔥🔥🔥🔥 · Effort M
+  Problem: ~70% of saves never reopened; guilt → avoidance → churn; only $120/yr Readwise addresses recall (R§4.3/4.14).
+  Build: "Kipi Daily 5" (new-tab or notification digest: 2 unread + 2 forgotten gems + 1 random — spaced-repetition-lite); "🔀 Surprise me" button; per-deck "going stale" nudges; reading streaks (opt-in). All local, no account.
+  Beats: the graveyard problem nobody free solves — this is the retention engine.
+- [ ] **I-12 · Save-state workflow (Unread → Reading → Done + Archive)** 🔥🔥🔥 · Effort S
+  Problem: piles grow unbounded; Burn 451's forced triage and Readwise's filters prove workflow beats buckets (R§3.1).
+  Build: per-item status + Library filters; optional "triage mode" (swipe/keyboard through Inbox); auto-archive rules ("mark done after opening", "archive shopping after 30d").
+  Metric: % of users at inbox-zero weekly.
+
+## P3 — Free AI layer (match $10/mo expectations at $0 marginal cost)
+
+- [ ] **I-13 · On-device article summaries** 🔥🔥🔥🔥🔥 · Effort M
+  Problem: summaries are table stakes (Recall, Fabric, Matter, Reader all have them) and always paywalled (R§5.5).
+  Build: Chrome built-in AI (Prompt/Summarizer API where available) → free, private, offline summaries with graceful fallback ("summary needs Chrome's built-in AI"); later: Transformers.js small model fallback for Firefox. 3-bullet + 1-line TL;DR per item, shown in cards + reader.
+  Beats: every paywalled summary; privacy (nothing leaves device). Metric: % of items summarized/read.
+- [ ] **I-14 · Semantic search (meaning, not just keywords)** 🔥🔥🔥🔥🔥 · Effort M–L
+  Problem: users describe articles by meaning; all keyword tools fail them; semantic search is paywalled everywhere (R§4.5).
+  Build: local embeddings (Transformers.js MiniLM, quantized, lazy-loaded; vectors in IndexedDB), hybrid rank = keyword score + cosine similarity; keep current engine as instant fallback. "Find that article about X" demo on the site.
+  Beats: Raindrop/Instapaper/Evernote search (all literal + mostly paid); matches Recall/Fabric free.
+- [ ] **I-15 · Smart auto-tagging v2 (beyond regex)** 🔥🔥🔥🔥 · Effort M
+  Problem: current classifier is ~13 English regexes; mymind/Recall prove auto-tag quality is the magic (R§1.3).
+  Build: layered: keep instant regex → add on-device keyword extraction (TF-IDF/TextRank over saved text) → optional user-trained rules ("always file `*.edu` → Research"); learn from manual deck moves (per-domain memory). Show "why filed here" with one-click correction that teaches.
+  Beats: Raindrop's paywalled AI tagging, mymind's opaque AI, Instapaper's nothing.
+- [ ] **I-16 · Auto-dedupe + "related items"** 🔥🔥🔥 · Effort S–M
+  Problem: re-saves and URL variants pile up; nobody connects related saves except expensive graphs (Recall knowledge graph) (R§3.3).
+  Build: canonical-URL + title-fingerprint dedupe at save ("you saved this 3mo ago — open it?"); related-items rail via shared tags + embedding similarity.
+  Beats: keeps libraries clean automatically — a quiet, loved moat.
+
+## P4 — Capture breadth (mobile, formats, snapshots, tabs)
+
+- [ ] **I-17 · Mobile capture wedge (PWA + share-target + bottom-sheet save)** 🔥🔥🔥🔥🔥 · Effort M–L
+  Problem: the #1 adoption blocker — every rival has share-sheet save; phone-heavy users unreachable (R§1.3/§5.7).
+  Build: installable PWA (library + reader, offline via service worker) reading the same Drive snapshot; Android share-target for link/text/image; iOS shortcut recipe as bridge; native wrappers (Capacitor/Tauri) only after traction. Syncs through existing Drive backend — no server needed.
+  Beats: unlocks the mobile half of every competitor's base. Metric: % saves from mobile.
+- [ ] **I-18 · True snapshots: archive the page, not just the link** 🔥🔥🔥🔥 · Effort M
+  Problem: link rot; images hotlinked; only 20k chars; archives paywalled (Raindrop Pro) or heavy (ArchiveBox) (R§4.13).
+  Build: save MHTML/single-file snapshot (local, capped size, per-deck retention rules) + screenshot thumbnail; "view archived copy" when live page 404s; images downloaded locally (respects size caps). Offline-first = works where server fetchers (Karakeep/Instapaper) fail on login-walled pages.
+  Beats: paywalled archives + server-side fetchers, structurally.
+- [ ] **I-19 · Save-all-tabs + session restore (absorb tab managers)** 🔥🔥🔥🔥 · Effort S
+  Problem: Toby/OneTab/Session Buddy users overlap heavily; their tools lose data and lack sync/search (R§3.6).
+  Build: "Save N tabs to deck…" (popup + shortcut), named tab-groups-as-decks, one-click restore, auto-backup of sessions (anti-Session-Buddy-data-loss), tab search across saved sessions.
+  Beats: absorbs 3 competitors' use case in ~1 week of work.
+- [ ] **I-20 · PDF / newsletter / RSS / YouTube ingestion** 🔥🔥🔥🔥 · Effort L (staged)
+  Problem: researchers/learners live in these formats; Readwise/Matter/Cubox ingest them, Kipideck can't (R§1.3).
+  Build (staged): (a) PDF save + text extraction (pdf.js, local) + PDF highlight; (b) "email-to-Kipi" inbound address → newsletter deck (needs tiny receiver — or parse via user-Gmail API to stay serverless); (c) RSS follow → auto-save to Research; (d) YouTube: save + local transcript capture + summary (I-13).
+  Beats: completes the "save *anything*" promise; unlocks Readwise-switcher messaging at $0.
+- [ ] **I-21 · Screenshot / area-capture + OCR** 🔥🔥🔥 · Effort M
+  Problem: visual savers (designers, shoppers, researchers) screenshot constantly; mymind/Pinterest own them (R§3.3).
+  Build: area capture → saved image item with local OCR text (Tesseract.js, on-device) indexed for search.
+  Beats: free visual search nobody offers.
+
+## P5 — Moat: sync v2, sharing, integrations
+
+- [ ] **I-22 · Sync v2: delta sync + scale + E2E encryption** 🔥🔥🔥🔥 · Effort L
+  Problem: single-JSON-snapshot upload won't scale to 10k items; record-level merge; no encryption (R§1.3).
+  Build: chunked/delta uploads (only changed records), pagination + lazy content fetch, field-level merge for notes/tags/pins, optional E2E encryption (passphrase-derived key, zero-knowledge — Drive sees ciphertext). Keep tombstone discipline.
+  Beats: privacy absolutists (Wallabag/Karakeep self-hosters) get their guarantees with zero setup.
+- [ ] **I-23 · Public decks & share links (opt-in)** 🔥🔥🔥🔥 · Effort M–L
+  Problem: no sharing = no virality; Raindrop collections, Glasp social, mymind-spaces envy (R§3.2–3.4).
+  Build: publish any deck → read-only link (rendered statically; data stays yours, unpublish anytime); embeds for blogs; "subscribe to deck" (RSS). Local-first compatible: share renders from your Drive snapshot, no Kipideck account needed to view.
+  Beats: every private-only rival; turns users into distributors. Metric: shared-deck views → installs.
+- [ ] **I-24 · Become the neutral capture layer: 1-click export to Notion/Obsidian/Readwise/Markdown** 🔥🔥🔥🔥 · Effort M
+  Problem: every note-taker clipper is dying, mediocre, or locked to its mothership (R§3.5).
+  Build: per-item and bulk "Send to…": Notion API, Obsidian vault Markdown (+ readwise-compatible highlight format), Markdown/ZIP download; templates (citation format for researchers: APA/BibTeX — nobody free does this).
+  Beats: positions Kipideck *above* the note wars instead of in them.
+- [ ] **I-25 · Local API + URL scheme (power-user glue)** 🔥🔥🔥 · Effort S
+  Problem: Omnivore's dead API orphaned plugin ecosystems; power users fear lock-in (R§2).
+  Build: documented local REST-ish API (via native messaging or library-page bridge) + `kipideck://save?url=` scheme + Raycast/Alfred/CLI recipes. Lets the community build what we won't.
+- [ ] **I-26 · Safari build** 🔥🔥🔥 · Effort M (needs Mac)
+  Problem: Safari users (esp. Apple-heavy readers) excluded; GoodLinks/Reeder own them by default (R§1.3).
+  Build: `safari-web-extension-converter` wrap + App Store listing (free). Reuses the standard-API codebase unchanged.
+- [ ] **I-27 · Teams/family shared decks (later, paid)** 🔥🔥 · Effort L
+  Problem: research teams, couples, classrooms share saves (Diigo groups, Raindrop collab, Notion) — no local-first option exists.
+  Build: shared Drive-folder sync for a deck (Google-native sharing = permissions solved, still no Kipideck server). Natural Pro tier (see M-02).
+
+## P6 — Growth & distribution (cheap, specific)
+
+- [ ] **I-28 · Launch where refugees gather** 🔥🔥🔥🔥 · Effort S
+  Build: Product Hunt + Hacker News ("Show HN: shutdown-proof Pocket alternative") + Reddit (r/productivity, r/PKMS, r/bookmarks) + AlternativeTo/G2/Capterra listings. Lead with the trust story + importer, not features. Time around "1 year since Pocket died" retrospectives (July 2026 missed — use "deleted your data" anniversary Nov 2026).
+- [ ] **I-29 · Comparison content engine** 🔥🔥🔥 · Effort S (ongoing)
+  Build: extend I-06 to `/vs/raindrop`, `/vs/instapaper`, `/vs/mymind`, `/vs/evernote`… honest tables (R§6), updated each release. Comparison keywords convert best in this category.
+- [ ] **I-30 · In-product viral loops** 🔥🔥🔥 · Effort S
+  Build: shared decks (I-23) with "Made with Kipideck" footer; export files credit the tool; referral-free — instead: "gift a pre-filled starter deck" (recipes, dev resources) new users can clone.
+- [ ] **I-31 · Privacy-proof marketing kit** 🔥🔥🔥 · Effort XS
+  Build: "No account. No server. No tracking." badges; public architecture diagram (browser ↔ your Drive, nothing else); open-source the extension code (keeps trust maximal, enables contributors) while keeping brand/distribution.
+- [ ] **I-32 · Community & support that answers (the anti-Raindrop)** 🔥🔥🔥 · Effort ongoing
+  Problem: support black holes are a top-10 complaint (Raindrop, Matter, Weava) (R§4.10).
+  Build: public roadmap + changelog + GitHub Discussions; "we reply in 48h" SLA; every 1-star store review gets a human reply. Support quality is a *feature* in this market.
+
+## P7 — Monetization without betrayal (keep the trust moat)
+
+Principles: core capture/organize/search/sync stays **free forever**; charge only for things with real marginal cost or team value. Never: gate search, cap saves, hold data hostage (the mymind/Evernote sins, R§4.1/4.2).
+
+- [ ] **M-01 · Kipideck Cloud (optional hosted sync, $3–4/mo or $29/yr)** 🔥🔥🔥🔥 · Effort L
+  For users who won't touch Google setup: instant account sync + web library + mobile push, E2E-encrypted. Undercuts Readwise ($120) and matches Raindrop Pro pricing while core stays free. Free tier keeps DIY Drive sync.
+- [ ] **M-02 · Teams/Family ($5–8/mo)** 🔥🔥 · Effort L — shared decks + roles + team search (needs I-27).
+- [ ] **M-03 · Pro AI pack (one-time or $2/mo)** 🔥🔥🔥 · Effort M — cloud-LLM summaries Q&A for huge libraries (local AI stays free); pay-per-use transparency.
+- [ ] **M-04 · Lifetime deal launch ($49–79 once)** 🔥🔥🔥 · Effort XS — funding + evangelists; subscription-averse buyers (GoodLinks fans, G2 "one-time purchase" seekers) convert hard on LTDs.
+- [ ] **M-05 · Never list (anti-monetization)** — no ads, no data sale, no save caps, no search paywall, no cancel-loses-data. Publish as "The Kipideck Pledge" — it *is* the marketing.
+
+---
+
+## Suggested roadmap (phases)
+
+| Phase | Weeks | Ship | Unlocks |
+|---|---|---|---|
+| 1 · Exist | 1–3 | I-01 stores, I-03 onboarding, I-04 leaks, I-05 importers, I-06/I-07 refugee pages | install conversion + refugee capture |
+| 2 · Sync for humans | 3–6 | I-02 one-click sync, I-12 triage, I-19 tabs | retention + tab-manager absorption |
+| 3 · Consume | 6–12 | I-08 reader, I-11 resurfacing, I-10 TTS, I-09 highlights | daily-use habit; parity with read-it-later |
+| 4 · Free AI | 10–16 | I-13 summaries, I-14 semantic search, I-15 tagging v2, I-16 dedupe | the $10/mo-killer story; press + PH relaunch |
+| 5 · Everywhere | 14–24 | I-17 mobile PWA, I-18 snapshots, I-26 Safari, I-20 formats (staged) | platform parity; researcher unlock |
+| 6 · Moat & money | 20+ | I-22 sync v2/E2EE, I-23 sharing, I-24 exports, M-01/M-04 | virality + revenue |
+
+## Kill list — what NOT to build
+
+1. **Another cloud account system as the default** — destroys the #1 differentiator (R§5.1). Hosted sync only as opt-in paid.
+2. **Social network / public graph** (Glasp-style) — privacy brand poison; sharing = links, not profiles.
+3. **Full PKM (backlinks, canvas, tasks)** — Obsidian/Notion/Logseq quicksand; instead be their best capture front-end (I-24/I-25).
+4. **Server-side AI on free tier** — unit economics death; AI must be on-device or user-paid (I-13/M-03).
+5. **Paywalling search, saves, export, or sync-basics** — the exact sins killing Evernote/mymind/Raindrop-goodwill (R§4.1).
+6. **Browser built-in clone features without differentiation** (plain reading list) — must always add organize + search + recall on top.
+7. **Crypto/NFT/token anything** — instant trust suicide in a privacy brand.
+
+---
+
+## Idea scoreboard (top 10 by impact/effort)
+
+| Rank | ID | Idea | Impact | Effort |
+|---|---|---|---|---|
+| 1 | I-05 | Refugee importers | 🔥×5 | S–M |
+| 2 | I-01 | Store publishing | 🔥×5 | M |
+| 3 | I-02 | One-click sync | 🔥×5 | M–L |
+| 4 | I-08 | Reader view | 🔥×5 | M |
+| 5 | I-11 | Resurfacing/digest | 🔥×5 | M |
+| 6 | I-14 | Semantic search (local) | 🔥×5 | M–L |
+| 7 | I-13 | On-device summaries | 🔥×5 | M |
+| 8 | I-19 | Save-all-tabs | 🔥×4 | S |
+| 9 | I-06 | Refugee landing/SEO | 🔥×4 | S |
+| 10 | I-17 | Mobile PWA wedge | 🔥×5 | M–L |
+
+*Start at the top. Each line is a release; each release steals a competitor's users for a reason the research proves they already want.*
