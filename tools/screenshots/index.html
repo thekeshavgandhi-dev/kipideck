@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kipideck — screenshot harness</title>
+
+<!-- MUST be a classic script and MUST load before the module below: it sets
+     globalThis.browser.runtime.id, which is what stops browser-polyfill from
+     trying to rebuild the API surface out of a `chrome` that does not exist. -->
+<script src="shim.js"></script>
+
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+  /* The control bar. Never visible in a screenshot: use ?controls=0, or press
+     H, or click "hide". */
+  #harness-bar {
+    position: fixed; z-index: 99999; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 7px 10px;
+    background: #1c1b29; color: #fff; font-size: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.3);
+  }
+  #harness-bar[hidden] { display: none; }
+  #harness-bar b { font-size: 12px; margin-right: 4px; opacity: .65; font-weight: 600; }
+  #harness-bar a {
+    color: #fff; text-decoration: none; background: #3a3852;
+    padding: 4px 9px; border-radius: 6px; font-weight: 600;
+  }
+  #harness-bar a:hover { background: #7c5cfc; }
+  #harness-bar a.on { background: #7c5cfc; }
+  #harness-status { margin-left: auto; opacity: .7; font-size: 11.5px; }
+  #harness-bar button {
+    background: #3a3852; color: #fff; border: 0; padding: 4px 9px;
+    border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+    font-family: inherit; margin-left: 6px;
+  }
+  #harness-bar button:hover { background: #7c5cfc; }
+
+  /* Push the real UI below the bar so nothing is hidden behind it. */
+  body.with-bar { padding-top: 34px; }
+</style>
+</head>
+<body class="with-bar">
+
+<div id="harness-bar">
+  <b>Shot:</b>
+  <a href="index.html?scene=grid">1 · grid</a>
+  <a href="index.html?scene=search">2 · search</a>
+  <a href="index.html?scene=detail">3 · detail</a>
+  <a href="index.html?scene=import">4 · import banner</a>
+  <a href="index.html?scene=export">5 · export</a>
+  <a href="index.html?scene=settings">6 · settings</a>
+  <span id="harness-status">Loading…</span>
+  <button id="harness-hide" type="button">hide controls (H)</button>
+</div>
+
+<script type="module" src="harness.js"></script>
+<script>
+  var params = new URLSearchParams(location.search);
+  var bar = document.getElementById("harness-bar");
+
+  if (params.get("controls") === "0") {
+    bar.hidden = true;
+    document.body.classList.remove("with-bar");
+  }
+
+  // Mark the current scene.
+  var scene = params.get("scene") || "grid";
+  for (var a of bar.querySelectorAll("a")) {
+    if (a.getAttribute("href").indexOf("scene=" + scene) !== -1) a.className = "on";
+  }
+
+  document.getElementById("harness-hide").addEventListener("click", function () {
+    bar.hidden = true;
+    document.body.classList.remove("with-bar");
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "h" || e.key === "H") {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+      bar.hidden = !bar.hidden;
+      document.body.classList.toggle("with-bar", !bar.hidden);
+    }
+  });
+</script>
+</body>
+</html>

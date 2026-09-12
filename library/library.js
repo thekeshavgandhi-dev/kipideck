@@ -81,6 +81,8 @@ const els = {
   exportModalBody: el("exportModalBody"),
   exportModalCancel: el("exportModalCancel"),
   importBtn: el("importBtn"),
+  importBanner: el("importBanner"),
+  importBannerBtn: el("importBannerBtn"),
   importFile: el("importFile"),
   importModalOverlay: el("importModalOverlay"),
   importModalBody: el("importModalBody"),
@@ -708,6 +710,15 @@ let importRecomputeTimer = 0;
 
 els.importBtn.addEventListener("click", () => els.importFile.click());
 
+// `library.html#import=1` — opened from the first-run page's "Import from…"
+// shortcut. The file picker is opened by a real click (a dialog not triggered
+// by a user gesture is blocked), so the banner exists to give that click
+// somewhere obvious to land.
+els.importBannerBtn?.addEventListener("click", () => {
+  els.importBanner?.classList.add("hidden");
+  els.importFile.click();
+});
+
 els.importFile.addEventListener("change", async (e) => {
   const files = [...(e.target.files || [])];
   els.importFile.value = "";
@@ -1293,6 +1304,9 @@ async function applyHash() {
   } else if (params.get("settings")) {
     await reload();
     openSettings(params.get("settings"));
+  } else if (params.get("import")) {
+    await reload();
+    els.importBanner?.classList.remove("hidden");
   }
 }
 

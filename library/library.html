@@ -66,6 +66,22 @@
       <button id="setupBannerBtn" class="primary-btn">Open first-run setup</button>
     </div>
 
+    <!-- Shown for `library.html#import=1`, which the first-run page links to so
+         a refugee goes install → import without hunting for the ⬆ button.
+         The button, not an automatic file dialog, is deliberate: a file picker
+         opened without a user gesture is blocked by the browser. -->
+    <div id="importBanner" class="setup-banner hidden">
+      <div>
+        <b>Import your old library</b>
+        <span>
+          Choose your export files — Pocket CSVs, Omnivore metadata and its contents folder, a
+          Raindrop backup, bookmarks, or a plain list of links. Nothing is written until you have
+          seen a preview.
+        </span>
+      </div>
+      <button id="importBannerBtn" class="primary-btn">Choose files…</button>
+    </div>
+
     <header class="content-header">
       <div class="title-block">
         <h1 id="viewTitle">All items</h1>

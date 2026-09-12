@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 const EFFECTIVE = "12 September 2026";
-const VERSION = "Extension version 1.4.0";
+const VERSION = "Extension version 1.5.0";
 
 const PERMISSIONS = [
   {

@@ -136,6 +136,81 @@ kbd {
 .choice input:checked + .switch { background: var(--purple); }
 .choice input:checked + .switch::after { transform: translateX(16px); }
 
+/* ---------------- "try it before you finish" ---------------- */
+.card.start .muted { color: var(--muted); font-size: 13px; margin: -8px 0 14px; }
+.card.start .muted em { font-style: normal; font-weight: 700; color: var(--text-soft); }
+
+.start-actions { display: flex; flex-direction: column; gap: 10px; }
+.start-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-soft);
+  background: #fdfdff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 13px 14px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.start-btn:hover { border-color: #ddd2ff; background: #fbf9ff; }
+.start-btn:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+.start-btn.subtle { background: #fffaf7; border-color: #f3ece4; }
+.start-btn.subtle:hover { background: #fdf4ee; border-color: #e8d9cb; }
+.start-ico { font-size: 16px; line-height: 1.4; flex: none; width: 22px; text-align: center; }
+.start-text strong { display: block; color: var(--text); font-size: 14.5px; font-weight: 650; margin-bottom: 2px; }
+.start-text .when { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.start-text code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  background: #f2effa;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.card.start .fineprint { margin-top: 12px; }
+.card.start .fineprint:empty { display: none; }
+
+/* ---------------- deck tour + shortcuts ---------------- */
+.card.tour .muted { color: var(--muted); font-size: 13px; margin: -8px 0 14px; }
+.tour-sub { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 20px 0 10px; }
+
+.deck-tour { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; }
+.deck-tour li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f7f5ff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px 5px 9px;
+  font-size: 13px;
+  color: var(--text-soft);
+  font-weight: 600;
+}
+.deck-ico { font-size: 13px; }
+
+.shortcuts { display: flex; flex-direction: column; gap: 8px; }
+.shortcut {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13.5px;
+  color: var(--text-soft);
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.shortcut:last-child { border-bottom: none; }
+.keys { flex: none; display: inline-flex; gap: 3px; min-width: 148px; }
+
+@media (max-width: 560px) {
+  .shortcut { flex-direction: column; align-items: flex-start; gap: 5px; }
+  .keys { min-width: 0; }
+}
+
 /* ---------------- actions ---------------- */
 .actions { text-align: center; margin-top: 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .btn-primary, .btn-ghost {

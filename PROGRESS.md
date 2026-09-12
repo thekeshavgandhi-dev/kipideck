@@ -1,10 +1,12 @@
 # Kipideck — Progress
 
-**Last updated:** 12 September 2026 · **Branch:** `arena/01a092e4-kipideck` · **Companion:** [`TASK.md`](./TASK.md) (what's next), [`ideas.md`](./ideas.md) (the full idea list)
+**Last updated:** 12 September 2026 · **Branch:** `arena/01a0935d-kipideck` · **Version:** 1.5.0 ·
+**Companion:** [`TASK.md`](./TASK.md) (what's next), [`ideas.md`](./ideas.md) (the full idea list),
+[`CHANGELOG.md`](./CHANGELOG.md) (what shipped when)
 
-One-line status: **Phase 0 (foundation) is shipped and measured. Phase 1 is roughly two-thirds done —
-the importers (I-05) and the export formats (I-07 code) are finished and tested; the refugee landing
-pages (I-06) and the store submission (I-01) are the remaining work.**
+One-line status: **Phase 0 (foundation) is shipped and measured. Phase 1 is done — all four refugee
+pages, the documented export schema, the store-submission paperwork and the finished onboarding all
+shipped in v1.5.0. What remains is the act of submitting to the stores (I-01) and Phase 2.**
 
 Everything below is either verified by a test in `test/` or explicitly marked as *not yet verified*.
 
@@ -15,7 +17,7 @@ Everything below is either verified by a test in `test/` or explicitly marked as
 | Phase | Scope | Status | Notes |
 |---|---|---|---|
 | **0 · Foundation** | Data layer at 50k, sync v2 (delta), trust leaks, tests + CI, privacy policy | ✅ **Complete** | Shipped in v1.4. Four ideas are deliberately partial (see below). |
-| **1 · Exist** | I-05 importers, I-06 refugee pages, I-07 shutdown-proof export, I-01 stores, I-03 onboarding | 🟡 **~65%** | I-05 done · I-07 code done, doc pending · I-06 1 of 4 pages · I-01 not started · I-03 partial |
+| **1 · Exist** | I-05 importers, I-06 refugee pages, I-07 shutdown-proof export, I-01 stores, I-03 onboarding | ✅ **Complete** | All four pages + the schema doc + the submission paperwork shipped in v1.5.0. Only the act of submitting to the stores remains (I-01). |
 | 2 · Sync for humans | I-02 one-click sync, I-12 triage, I-19 save-all-tabs | ⬜ Not started | I-02's reliability half shipped in Phase 0 |
 | 3 · Consume | I-08 reader, I-09 highlights, I-10 TTS, I-11 resurfacing | ⬜ Not started | |
 | 4 · Free AI | I-13 summaries, I-14 semantic search, I-15 tagging v2 | ⬜ Not started | Progressive enhancement only |
@@ -104,7 +106,7 @@ Measured (in the test environment, which is pessimistic — `fake-indexeddb` in 
 | 2,000 records: IndexedDB write + search index | **755 ms** (~2,650 items/s) |
 | 1,000 items → bookmark HTML export | **12 ms** (82 KB) |
 
-### I-07 · Shutdown-proof export — 🟡 **code done, documentation pending**
+### I-07 · Shutdown-proof export — ✅ **complete (code + documented schema + pledge page)**
 
 `lib/exporters.js` + three streamed exporters in `Storage`:
 
@@ -118,10 +120,48 @@ The guarantee that is actually tested: **our own bookmark export imports back th
 importer with URLs, titles, tags, dates, folders and notes intact** (`test/export.test.js`). That
 round trip is what makes "you can always leave" a property rather than a claim.
 
-*Still missing:* `docs/EXPORT_FORMAT.md` (the documented schema the pledge promises) and the public
-`/shutdown-proof` pledge page.
+**✅ `docs/EXPORT_FORMAT.md` now exists** — the documented schema the pledge promises. It covers the
+JSON envelope (`version`, `app`, `exportedAt`, `counts`, `decks`, `settings`, `tombstones`, `items`),
+every item field with its type and whether it is optional, the deck/settings/tombstone shapes (and why
+tombstones carry a canonical URL), the bookmark-HTML mapping table, the Markdown structure, a worked
+example generated from **real exporter output** rather than written by hand, a field-by-field
+round-trip matrix, and the specific test that proves each guarantee.
 
-### I-06 · Refugee landing pages — 🟡 **1 of 4 pages**
+Writing it surfaced three things worth knowing:
+
+- The `content` key is **absent** (not empty-string) when there is no page text — the single most
+  important rule for anyone writing a converter.
+- Items also carry internal fields (`canon`, `fp`, `pf`), and `idx`/`n` are deliberately stripped on
+  export. The doc marks the internal ones as internal so nobody builds on them.
+- JSON timestamps are **milliseconds**; bookmark-HTML timestamps are **seconds**. There is a test for
+  that conversion because getting it wrong is the easiest way to corrupt an export.
+
+**✅ `/shutdown-proof`** is live, and it links to the schema.
+
+### I-06 · Refugee landing pages — ✅ **all 4 pages**
+
+Shipped in v1.5.0. All four build as static routes, and every internal link on the site now
+resolves (verified by crawling each built page — see "Test & build status").
+
+- ✅ `/pocket-alternative` — the 22 May / 8 Jul / 12 Nov 2025 timeline, the four-step rescue,
+  what survives (and the honest "Pocket never exported article text"), a Pocket-vs-Kipideck table,
+  and six FAQs including "I never exported — can I get it back?" (answer: no).
+- ✅ `/omnivore-alternative` — the structural argument: **Omnivore was open source and still died**,
+  because the code was free but the library lived in their Postgres. Verified timeline (29 Oct 2024
+  announcement → 15 Nov 2024 deletion, ~2 weeks to export), the export anatomy table
+  (`metadata_*.json` + `contents/<slug>.html` + `highlights/*.md`), and a rescue that rejoins article
+  text by slug.
+- ✅ `/raindrop-alternative` — deliberately not a competitor hit job. "Keep Raindrop, also keep a
+  copy that needs no subscription and no server", plus a real migration path. **No pricing numbers** —
+  the page says "some features need a paid plan" rather than a figure we cannot keep current.
+- ✅ `/shutdown-proof` — the pledge as structural facts, "how to leave in three clicks", a **what we
+  cannot promise** section, and the graveyard timeline. Names only products that have already shut
+  down.
+- ✅ Homepage funnel — an "Arriving from Pocket or Omnivore?" section near the top with one honest
+  sentence about what cannot be recovered, plus footer links to all four pages.
+- ✅ `app/components/PageShell.js` — shared nav/footer.
+- ⬜ Directory submissions (AlternativeTo, G2, Capterra) — not started.
+
 
 - ✅ `/pocket-alternative` — written and **building as a static route**: the 22 May / 8 Jul / 12 Nov
   2025 timeline, the four-step rescue (unzip → install → select all CSVs → preview), what survives
@@ -132,11 +172,55 @@ round trip is what makes "you can always leave" a property rather than a claim.
 - ⬜ `/omnivore-alternative`, `/raindrop-alternative`, `/shutdown-proof` — not written yet.
 - ⬜ Homepage links + a "moving from Pocket?" section — not added yet.
 
-### I-01 · Store submission — ⬜ **not started**
+### I-01 · Store submission — 🟡 **paperwork done, submission not sent**
 
-`docs/STORE_SUBMISSION.md` does not exist yet. The open decision is recorded in `TASK.md`: keep
-`<all_urls>` with a written justification (removing it kills saving from arbitrary pages) versus an
-optional-host-permission variant.
+`docs/STORE_SUBMISSION.md` now exists and is ready to paste into the forms. The decision it records:
+
+> **Keep `<all_urls>`,** with the optional-host-permission variant written down as a fallback.
+
+The justification is narrower than "we need to save from any page". Capture itself would survive on
+`activeTab` alone — `getPageMeta` and `getFullPageText` already use `scripting.executeScript`. What
+would **not** survive is anything that must be listening *before* the user acts: auto-save of selected
+text, `Space`+`K`, the "already in your Kipideck" toast, and per-site muting. The doc lists the four
+features the fallback variant would delete, and requires their UI and copy to be removed in the same
+commit rather than left silently inert.
+
+Also documented: permission justifications (kept in sync with `/privacy` — the doc says to change both
+if either changes), CWS single-purpose / remote-code / data-handling answers, listing copy that leads
+with the trust story and the importer, a seven-shot screenshot list, Edge and Firefox AMO deltas
+(AMO needs a real `browser_specific_settings.gecko.id` — the placeholder domain is still in
+`manifest.json` and **must be replaced before submitting**), and a pre-submission checklist.
+
+**Cost, and the order to submit in** — the part that decides what happens next:
+
+| Store | Cost |
+|---|---|
+| Firefox AMO | **Free** |
+| Edge Add-ons | **Free** |
+| Chrome Web Store | **$5, once** (per developer account, not per extension, not annual; unavoidable) |
+
+**Order: Firefox → Edge → Chrome.** Two stores are free today, so the extension becomes installable
+in one click before any money changes hands, and the $5 is spent on a submission that has already
+been through two reviewers.
+
+**✅ Screenshot harness built** (`tools/screenshots/`) — renders the real Library UI with a seeded
+41-item library, six scenes, `H` hides the controls. Screenshots are now a ~10-minute job. `tools/`
+is not in the packaging list, so none of it ships to users.
+
+**🟡 Edge submission in progress** (12 Sept 2026). `docs/STORE_SUBMISSION.md` now carries an
+Edge-specific quick-fill block — the exact values for each Partner Center field, and the three
+privacy-practice answers, so the form can be filled without re-reading the whole document.
+
+⬜ **Not yet done — and none of it is code:**
+
+1. Replace the **Firefox gecko id** (currently the placeholder `kipideck@example-addon.org`) with a
+   domain we control. Blocks AMO outright, and must never change afterwards.
+2. **Pay Chrome's $5** and register the developer account.
+3. **Capture the screenshots** using the harness.
+4. **Verify `https://kipideck.vercel.app/privacy` renders** — all three stores require a live policy
+   URL. DNS resolves to Vercel; it needs a human to open it once and confirm.
+5. **Record any Edge reviewer objection here when it arrives.** Edge reviews faster than Chrome, so
+   an objection there is a free early warning for the Chrome submission.
 
 ---
 
@@ -144,14 +228,21 @@ optional-host-permission variant.
 
 | Check | Result |
 |---|---|
-| `npm test` (`node --test test/*.test.js`) | **315 / 315 passing**, 10 suites |
-| `npm run package` | 31 files, **139 KB**, extension v1.4.0 |
-| `npm run build` (website) | compiles; 6 static routes incl. `/pocket-alternative` |
+| `npm test` (`node --test test/*.test.js`) | **330 / 330 passing**, 11 suites |
+| `npm run package` | 32 files, **145 KB**, extension v1.5.0 |
+| `npm run build` (website) | compiles; **9 static routes**, incl. all four refugee pages |
+| Internal link crawl of every built page | **no 404s** (this is how the three footer 404s were caught) |
+| Shipping JS syntax | all files parse |
+| `globals.css` | brace-balanced, no duplicated blocks, no unused rules added |
 | GitHub Actions | Node 20 + 22, runs the suite on push/PR |
 | Runtime dependencies | **zero** (the only devDependency is `fake-indexeddb`) |
 
 Test suites: `db` (29) · `storage` (28) · `canon` (37) · `sync` (25) · `wiring` (18) · `classify` (20)
-· `policy` (25) · **`import` (95)** · **`import-storage` (15)** · **`export` (25)**.
+· `policy` (**27**) · `import` (95) · `import-storage` (15) · `export` (25) · **`samples` (13)**.
+
+> **Note:** `npm test` needs `npm install` first — the suite imports `fake-indexeddb`, and a fresh
+> clone with no `node_modules` fails 7 suites with `ERR_MODULE_NOT_FOUND`. That is expected, but it
+> looks like a code failure, so it is worth saying out loud.
 
 The `wiring` suite is worth knowing about: it statically checks that every `id` the JS touches exists
 in the HTML (or is created by the JS), and that UI calls into `lib/` match the real API — so the
@@ -185,11 +276,16 @@ website/         Next.js marketing site: /, /deck, /privacy, /sync-setup, /pocke
 ## Known gaps and honest limitations
 
 1. **ZIP files cannot be opened.** Users must unzip Pocket/Omnivore exports first. Fixing it means
-   either a dependency or a hand-written inflate; both were rejected for now. The dialog explains it.
+   either a dependency or a hand-written inflate; both were rejected for now. The dialog explains it,
+   and the refugee pages say so plainly rather than letting people discover it mid-import.
 2. **Pocket exports contain no article text** — nobody can recover what was never exported. Kipideck
-   stores text for items saved from now on.
+   stores text for items saved from now on. Omnivore's export *does* contain it, which is why that
+   page makes a point of selecting the `contents/` folder.
 3. **No first-party OAuth client**, so Drive sync still needs a BYO client ID (I-02's other half).
-4. **Onboarding is disclosure-only** — no demo save, deck tour or sample items yet (I-03's other half).
-5. **Not in any store.** Sideloading only, which is the single biggest conversion killer (I-01).
+4. **Not in any store.** Sideloading only, which is the single biggest conversion killer (I-01). The
+   paperwork is now written; the submissions are not sent.
+5. **The Firefox gecko id is still a placeholder** (`kipideck@example-addon.org`) on a domain we do
+   not control. It must be replaced before the AMO submission, and never changed afterwards — changing
+   it post-publication breaks updates for existing users.
 6. **No reader view.** Saved text is stored and searchable but never rendered cleanly (I-08).
-7. **Version is still 1.4.0** — bump to 1.5.0 when Phase 1 ships.
+7. **No directory submissions yet** — AlternativeTo, G2 and Capterra are untouched (I-28).
