@@ -274,8 +274,42 @@ not on features.
 
 - **Cost: free,** but it needs a Microsoft Partner Center enrollment in the Edge program.
 - The same `.zip` works unchanged; Edge accepts MV3 Chrome packages.
-- Listing copy can be identical. Shorten the full description to fit Edge's field limits if required.
 - Edge asks for a "privacy practices" summary — reuse §3 verbatim.
+
+#### Quick fill for the Partner Center form
+
+| Field | Value |
+|---|---|
+| **Name** | `Kipideck — Save & Organize` |
+| **Package** | `website/public/downloads/kipideck-extension.zip` (v1.5.0, 145 KB, 32 files) |
+| **Category** | Productivity |
+| **Short description** (≤132) | `Save pages, links, images and text in one click. Auto-organized, searchable, and stored on your own device — no account, no server.` |
+| **Full description** | The full description from §4, verbatim. |
+| **Privacy policy URL** | `https://kipideck.vercel.app/privacy` |
+| **Website / support URL** | `https://kipideck.vercel.app` |
+
+**Privacy practices** — Edge asks these as discrete questions. All answers are the same three facts:
+
+- *Does this extension collect or transmit any user data?* → **No.** All library data stays on the
+  user's device. If — and only if — the user opts in, it syncs to **their own** Google Drive.
+- *Does it transmit data over the network?* → **Only** (a) a one-time favicon fetch per saved domain,
+  cached locally, and (b) Google Drive API calls, only when the user has turned sync on. Nothing is
+  sent to the developer.
+- *Does it collect personally identifiable information / browsing history / location?* → **No** to all
+  three.
+
+**If Edge reviewers ask about `<all_urls>`** — same answer as Chrome, from §1: capture itself would
+work on `activeTab` alone, but auto-save of selected text, `Space`+`K`, the duplicate-detection toast
+and per-site muting require a script that is already present on the page, because `executeScript` only
+fires on a user gesture.
+
+**Two Edge-specific notes:**
+
+- Edge's form fields are shorter than Chrome's. If the full description exceeds the limit, cut from
+  the *feature bullets* — never from the trust paragraphs at the top or the "no account, no server"
+  lines at the end.
+- Edge review tends to be **faster** than Chrome's, which is part of why it goes second rather than
+  last: you learn the shape of any objection while it is still cheap to fix.
 
 ### Chrome Web Store — **submit last ($5 once)**
 
@@ -319,8 +353,12 @@ indistinguishable from the sideload build users already have.
 | Date | Store | Version | Cost | Variant | Status |
 |---|---|---|---|---|---|
 | — | Firefox AMO | 1.5.0 | Free | `<all_urls>` | not yet submitted — **blocked on the gecko id** |
-| — | Edge Add-ons | 1.5.0 | Free | `<all_urls>` | not yet submitted |
+| 2026-09-12 | **Edge Add-ons** | 1.5.0 | Free | `<all_urls>` | 🟡 **submission in progress** |
 | — | Chrome Web Store | 1.5.0 | $5 once | `<all_urls>` | not yet submitted — needs the registration fee |
+
+**If Edge comes back with a rejection or a question, record it here before fixing it.** The same
+objection will very likely be raised by Chrome, and Chrome's review is slower — so an Edge objection
+is a free early warning. Note the date, the reviewer's wording, and what we changed in response.
 
 ### What I cannot do for you
 

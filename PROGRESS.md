@@ -207,6 +207,10 @@ been through two reviewers.
 41-item library, six scenes, `H` hides the controls. Screenshots are now a ~10-minute job. `tools/`
 is not in the packaging list, so none of it ships to users.
 
+**🟡 Edge submission in progress** (12 Sept 2026). `docs/STORE_SUBMISSION.md` now carries an
+Edge-specific quick-fill block — the exact values for each Partner Center field, and the three
+privacy-practice answers, so the form can be filled without re-reading the whole document.
+
 ⬜ **Not yet done — and none of it is code:**
 
 1. Replace the **Firefox gecko id** (currently the placeholder `kipideck@example-addon.org`) with a
@@ -215,6 +219,8 @@ is not in the packaging list, so none of it ships to users.
 3. **Capture the screenshots** using the harness.
 4. **Verify `https://kipideck.vercel.app/privacy` renders** — all three stores require a live policy
    URL. DNS resolves to Vercel; it needs a human to open it once and confirm.
+5. **Record any Edge reviewer objection here when it arrives.** Edge reviews faster than Chrome, so
+   an objection there is a free early warning for the Chrome submission.
 
 ---
 
