@@ -158,8 +158,13 @@ These must match `/privacy` §7 word for word. Source of truth:
 
 ### Short description (max 132 chars)
 
-> Save pages, links, images and text in one click. Auto-organized, searchable, and stored on your
-> own device — no account, no server. (131 chars)
+> Save pages, links, images and text in one click. Auto-organized, searchable, stored on your own
+> device — no account, no server. (127 chars)
+
+**This must be byte-for-byte the `description` in `manifest.json`.** Both stores read the manifest
+description and show it on the listing, and Edge caps *that field* at 132 characters too — the first
+upload was rejected on a 316-character manifest description while this listing copy was already fine.
+A test in `test/wiring.test.js` fails the build if the manifest description goes over 132.
 
 ### Full description
 
@@ -253,12 +258,16 @@ not on features.
 ### Firefox AMO — **submit first (free)**
 
 - **Cost: free.**
-- **⚠ Blocked on one thing:** the gecko id. It is currently a placeholder in `manifest.json`:
+- **⚠ Blocked on one thing:** the gecko id. It is currently a placeholder in
+  `tools/firefox-manifest-overlay.json`:
   ```json
   "browser_specific_settings": { "gecko": { "id": "kipideck@example-addon.org", "strict_min_version": "115.0" } }
   ```
   Replace `example-addon.org` with a domain we actually control **before submitting**, and keep it
   stable forever after — changing the gecko id post-publication breaks updates for existing users.
+- **Upload `kipideck-extension-firefox.zip`, not `kipideck-extension.zip`** — see §7. The repo's
+  `manifest.json` is the Chromium one, and a Chromium package gives Firefox an extension with no
+  background context at all.
 - AMO runs automated lint. Two things to check in advance:
   - No `eval`, no remote scripts, no `innerHTML` from remote data. (The extension code is clean;
     verify with the linter rather than by eye.)
@@ -273,17 +282,33 @@ not on features.
 ### Edge Add-ons — **submit second (free)**
 
 - **Cost: free,** but it needs a Microsoft Partner Center enrollment in the Edge program.
-- The same `.zip` works unchanged; Edge accepts MV3 Chrome packages.
+- Edge accepts MV3 Chrome packages, and `kipideck-extension-chromium.zip` is built for exactly that
+  (see §7 for which zip goes where).
 - Edge asks for a "privacy practices" summary — reuse §3 verbatim.
+
+#### What Edge rejected on the first upload (12 September 2026) — and why it cannot happen again
+
+The first package uploaded to Partner Center came back with three hard errors. All three are now
+impossible to rebuild, because `npm run package` refuses to write a zip that violates them:
+
+| Edge error | Cause | Fix |
+|---|---|---|
+| `The string … has exceeded the maximum length of 132` (+ the matching `allOf` error) | the manifest `description` was 316 characters | trimmed to 127 — the same string as the listing below |
+| `The background.scripts field cannot be used with manifest version 3` | one manifest tried to serve Chromium and Firefox at once | Chromium `service_worker`, Firefox `scripts` — merged at build time (§7) |
+
+Worth internalising: **Chrome and Edge both load a Manifest V3 extension that carries
+`background.scripts` without complaint** (Chrome has ignored the key since 121). The store validator
+does not. Local testing cannot catch this class of error, which is why the rules now live in code
+(`website/scripts/store-rules.mjs`) and run on every build.
 
 #### Quick fill for the Partner Center form
 
 | Field | Value |
 |---|---|
 | **Name** | `Kipideck — Save & Organize` |
-| **Package** | `website/public/downloads/kipideck-extension.zip` (v1.5.0, 145 KB, 32 files) |
+| **Package** | `website/public/downloads/kipideck-extension-chromium.zip` (v1.5.0, ~145 KB) |
 | **Category** | Productivity |
-| **Short description** (≤132) | `Save pages, links, images and text in one click. Auto-organized, searchable, and stored on your own device — no account, no server.` |
+| **Short description** (≤132) | `Save pages, links, images and text in one click. Auto-organized, searchable, stored on your own device — no account, no server.` — **copy it out of `manifest.json`;** the listing and the manifest must not drift. |
 | **Full description** | The full description from §4, verbatim. |
 | **Privacy policy URL** | `https://kipideck.vercel.app/privacy` |
 | **Website / support URL** | `https://kipideck.vercel.app` |
@@ -315,13 +340,52 @@ fires on a user gesture.
 
 - **Cost: $5 one-time** developer registration fee, before you can publish anything. One account
   covers up to ~20 items.
-- Upload `website/public/downloads/kipideck-extension.zip` (regenerate first — see §7).
+- Upload `website/public/downloads/kipideck-extension-chromium.zip` (regenerate first — see §7).
 - Complete the data-use disclosure and the permissions-justification boxes from §2 and §3.
 - Expect a review question about `<all_urls>`. Answer with §1, not with a one-liner.
 
 ---
 
-## 7 · Pre-submission checklist
+## 7 · Packaging: three zips, and which one goes where
+
+`npm run package` (repo root) builds all three into `website/public/downloads/` from one source tree.
+They differ only in the manifest inside them and in where `manifest.json` sits:
+
+| Zip | Manifest | `manifest.json` at the zip root? | Upload it to |
+|---|---|---|---|
+| `kipideck-extension.zip` | Chromium | No — nested under `kipideck/` | **Nowhere.** It is the website download: the folder is so unzipping gives people a folder to point "Load unpacked" at. |
+| `kipideck-extension-chromium.zip` | Chromium | **Yes** | **Edge Add-ons** and **Chrome Web Store** |
+| `kipideck-extension-firefox.zip` | Firefox | **Yes** | **Firefox AMO** (and temporary sideloading) |
+
+Stores require `manifest.json` at the root of the zip, which is why the two store packages are flat
+while the website download is nested.
+
+The single source of truth is the repo's `manifest.json`, which is the **Chromium** manifest.
+`tools/firefox-manifest-overlay.json` holds the keys Firefox needs instead
+(`background.scripts`, `service_worker: null`, `browser_specific_settings.gecko`), merged in only for
+the Firefox package. The split is not cosmetic:
+
+- Chromium's background is `background.service_worker`; the Edge validator **rejects** a Manifest V3
+  package that also declares `background.scripts`.
+- Firefox's background is a non-persistent event page declared with `background.scripts`
+  ([bug 1573659](https://bugzilla.mozilla.org/show_bug.cgi?id=1573659)), and on Firefox < 121 the
+  event page never starts at all when `service_worker` is also present
+  ([bug 1860304](https://bugzilla.mozilla.org/show_bug.cgi?id=1860304)) — hence deleting the key
+  rather than merely adding to it.
+
+Then, before you upload anything:
+
+```bash
+npm run package          # rebuild all three
+npm run verify:package   # re-check the BUILT zips against the store rules
+```
+
+`verify:package` exists because the packager only checks the source: it cannot tell that the zip you
+are about to drag into the upload form was built last week from a different branch. It fails loudly on
+a missing manifest, a rule violation, a file the manifest points at but the zip does not contain, or
+stray files (`.DS_Store`, `.map`, `node_modules`).
+
+## 8 · Pre-submission checklist
 
 Run in order. Do not skip the version bump — a store package still labelled 1.4.0 will be
 indistinguishable from the sideload build users already have.
@@ -335,9 +399,13 @@ indistinguishable from the sideload build users already have.
       shutdown-proof pledge and the published export schema.
 - [ ] `npm ci` at the repo root.
 - [ ] `npm test` — all 315 tests pass.
-- [ ] `npm run check` — tests **and** `npm run package` together.
-- [ ] Confirm the zip regenerated: `website/public/downloads/kipideck-extension.zip`, and that
-      `version.json` reports `1.5.0`.
+- [ ] `npm run check` — tests, `npm run package` **and** `npm run verify:package` together.
+- [ ] Confirm all three zips regenerated in `website/public/downloads/`
+      (`kipideck-extension.zip`, `kipideck-extension-chromium.zip`,
+      `kipideck-extension-firefox.zip`) and that `version.json` reports `1.5.0`.
+- [ ] Upload the **right** zip to each store — `…chromium.zip` to Edge and Chrome,
+      `…firefox.zip` to AMO (§7). Uploading the website zip to a store is the one mistake
+      `verify:package` cannot catch for you.
 - [ ] `cd website && npm run build` — all routes build static, including the four new pages.
 - [ ] Open every route once and click every internal link (the footer of every page links to all
       four new pages; a 404 there is the most likely regression).
@@ -353,7 +421,7 @@ indistinguishable from the sideload build users already have.
 | Date | Store | Version | Cost | Variant | Status |
 |---|---|---|---|---|---|
 | — | Firefox AMO | 1.5.0 | Free | `<all_urls>` | not yet submitted — **blocked on the gecko id** |
-| 2026-09-12 | **Edge Add-ons** | 1.5.0 | Free | `<all_urls>` | 🟡 **submission in progress** |
+| 2026-09-12 | **Edge Add-ons** | 1.5.0 | Free | `<all_urls>` | 🔴 **rejected at package validation** — 316-char manifest `description` + `background.scripts` under MV3. Fixed same day; all three rules now fail `npm run package`. Resubmit with `kipideck-extension-chromium.zip`. |
 | — | Chrome Web Store | 1.5.0 | $5 once | `<all_urls>` | not yet submitted — needs the registration fee |
 
 **If Edge comes back with a rejection or a question, record it here before fixing it.** The same

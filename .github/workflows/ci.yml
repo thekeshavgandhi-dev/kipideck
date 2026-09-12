@@ -77,8 +77,16 @@ jobs:
       - run: npm ci
         working-directory: website
 
-      # `prebuild` packages the extension zip first and fails if any file the
+      # `prebuild` packages the extension zips first and fails if any file the
       # manifest or a runtime.getURL() call needs is missing from the package.
       - name: Build site (also packages the extension)
         run: npm run build
+        working-directory: website
+
+      # Re-checks the zips that just got built against the store rules
+      # (description length, background.scripts under MV3, unrecognized keys…).
+      # The packager only validates the source; this validates the artifact that
+      # would actually be uploaded.
+      - name: Verify the store packages
+        run: npm run verify-extension
         working-directory: website

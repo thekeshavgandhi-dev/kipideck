@@ -5,8 +5,11 @@
 //
 // Uses `ext` (see lib/compat.js) everywhere instead of raw chrome.* / browser.*
 // so this exact file runs unmodified on Chrome, Edge, Brave, Opera, and Firefox.
-// Declared with "type": "module" AND listed in manifest.background.scripts so
-// Firefox (which needs `scripts`, not `service_worker`) loads it too.
+//
+// One file, two manifests: Chromium loads it as "background": { "service_worker" }
+// and Firefox as "background": { "scripts" } — see tools/firefox-manifest-overlay.json
+// for why the two cannot be declared in the same manifest any more. Both declare
+// "type": "module", which is what lets the static imports below work.
 //
 // Three things changed here in Phase 0, all of them trust/compliance fixes:
 //   1. no third-party favicon requests (see lib/favicons.js)

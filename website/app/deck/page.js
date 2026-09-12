@@ -65,7 +65,10 @@ export default function DeckPage() {
           <div className="card">
             <h3>🦊 Firefox</h3>
             <ol>
-              <li>Download + unzip the same file to get the <code>kipideck</code> folder.</li>
+              <li>
+                Download + unzip — on Firefox the button gives you the Firefox package,{" "}
+                <code>kipideck-extension-firefox.zip</code>.
+              </li>
               <li>
                 Open <code>about:debugging#/runtime/this-firefox</code>.
               </li>

@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "package-extension": "node scripts/build-extension-zip.mjs",
+    "verify-extension": "node scripts/verify-extension-zip.mjs",
     "prebuild": "node scripts/build-extension-zip.mjs",
     "predev": "node scripts/build-extension-zip.mjs"
   },
