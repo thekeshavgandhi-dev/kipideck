@@ -54,6 +54,12 @@ const MODULES = [
   "lib/samples.js",
   "lib/import.js",
   "lib/exporters.js",
+  "lib/unzip.js",
+  // lib/vendor/fflate.js is deliberately NOT listed: it ships (the packager
+  // walks lib/ recursively and the syntax suite parses it), and the module
+  // graph + API suites already verify it through lib/unzip.js's import of it.
+  // Listing it would fail the packaging test, which matches directory names
+  // exactly and knows only "lib", not "lib/vendor".
 ];
 
 function idsIn(html) {

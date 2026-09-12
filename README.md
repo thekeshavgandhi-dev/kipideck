@@ -57,11 +57,14 @@ There's also:
   automatically, with the page it came from as its reference. No clicking,
   no confirming (toggle it in Library → Settings). Picking the same text
   again within a short window is ignored, so it never spams your library.
-- A **toolbar popup** with a "Save this page" button and a one-line quick
-  note field (press Enter to save) for jotting a thought without leaving the page.
+- A **toolbar popup** with a "Save this page" button, a "Save all tabs" button
+  that keeps the whole window as one searchable session card (restorable later
+  with one click), and a one-line quick note field (press Enter to save) for
+  jotting a thought without leaving the page.
 - Keyboard shortcuts: **`Space` then `K`** quick-saves the current page from
   any website (a two-key combo that can't collide with browser shortcuts),
-  plus `Ctrl+Shift+K` (`Cmd+Shift+K` on Mac) to quick-save the current page
+  plus `Ctrl+Shift+K` (`Cmd+Shift+K` on Mac) to quick-save the current page,
+  `Ctrl+Shift+S` / `Cmd+Shift+S` to save all open tabs as one session,
   and `Ctrl+Shift+L` / `Cmd+Shift+L` to open the full library.
 
 ## How the auto-organizing works
@@ -90,8 +93,8 @@ things by what a page actually *said*, not just its title:
 
 - Free-text queries are ranked by field (title & tags weigh more than raw
   page text) and support prefix matching (`prog` matches `programming`).
-- Structured filters: `tag:recipe`, `site:github.com` — combine them with
-  free text, e.g. `carbonara site:foodblog.com`.
+- Structured filters: `tag:recipe`, `site:github.com`, `status:reading` —
+  combine them with free text, e.g. `carbonara site:foodblog.com`.
 - Search snippets in the Library grid show the matched sentence, not just
   the start of the item.
 
@@ -173,14 +176,19 @@ How this is achieved:
 Click the extension icon → **⤢** (or `Ctrl+Shift+L`) to open the full
 Library — a dashboard with:
 
-- A sidebar of decks (with live counts), a tag cloud, and a sync status pill
+- A sidebar of decks (with live counts), save-state chips (Unread → Reading →
+  Done → Archive, with live counts), a tag cloud, and a sync status pill
 - Full-text search across titles, saved page text, notes, tags, and domains
 - Grid or list view, sort by newest/oldest/A–Z
 - Click any card to open its detail view: edit the title, move decks,
   add/remove tags, write a personal note, re-open the original source,
   copy its reference, pin it, or delete it
-- Multi-select + bulk move/delete
-- One-click **Export** (JSON backup) and **Import** (restore/migrate)
+- Multi-select + bulk move/delete/re-triage, and one-click restore for saved
+  tab sessions (first tab focused, the rest backgrounded)
+- One-click **Export** (JSON backup, bookmark HTML, Markdown) and **Import**
+  (13 formats — Pocket, Instapaper, Raindrop, Omnivore, browser bookmarks and
+  more — including straight from a ZIP archive, with a preview before anything
+  is written)
 - **Settings**: toggle auto-organize, selection auto-save, the save toast and
   `Space`+`K`, review the keyboard shortcuts, manage muted sites, and manage
   Google Drive sync
@@ -208,7 +216,15 @@ kipideck/
 │   ├── favicons.js        Local favicon cache (no third-party icon service)
 │   ├── classify.js        Offline heuristic classifier (deck + tag suggestions)
 │   ├── extract.js         In-page full-text extraction for search
-│   └── drive-sync.js      Sharded Google Drive sync: PKCE auth, delta uploads, merge
+│   ├── drive-sync.js      Sharded Google Drive sync: PKCE auth, delta uploads, merge
+│   ├── status.js          Save-state vocabulary (unread/reading/done/archived) + foreign mapping
+│   ├── sessions.js        Tab-session capture/restore helpers
+│   ├── samples.js         First-run sample items
+│   ├── policy.js          Capture policy contract (what may be silent, where)
+│   ├── import.js          13-format import engine (pure text → records)
+│   ├── exporters.js       Bookmark HTML + Markdown generators (pure)
+│   ├── unzip.js           In-browser ZIP expansion for imports (caps + friendly errors)
+│   └── vendor/fflate.js   Vendored DEFLATE/ZIP codec (MIT, single file — not a dependency)
 ├── popup/
 │   └── popup.html/.css/.js  Toolbar popup: quick save, quick note, recent items, search
 ├── library/
@@ -218,7 +234,7 @@ kipideck/
 ├── icons/                 Extension icons (16/32/48/128)
 ├── docs/
 │   └── GOOGLE_SYNC_SETUP.md  Step-by-step Google Cloud Console setup for sync
-├── test/                  `node --test` suite: data layer, search, canonicalization, sync, wiring
+├── test/                  `node --test` suite (414 tests): data layer, search, import/export incl. ZIP, sync, wiring
 ├── .github/workflows/ci.yml  Tests on Node 20 + 22, weekly 50k-item benchmark, website build
 ├── website/               Next.js marketing/docs site (deploy target: Vercel), incl. /privacy
 └── website/public/downloads/  Generated install packages:
@@ -264,7 +280,7 @@ built-in runner plus [`fake-indexeddb`](https://github.com/dumbmatter/fakeIndexe
 
 ```bash
 npm install          # dev dependencies only (the test harness)
-npm test             # 180 tests: data layer, search, canonicalization, capture policy, sync, wiring
+npm test             # 414 tests: data layer, search, import/export, capture policy, sync, wiring
 npm run test:scale   # the 50,000-item benchmark (slow; nightly in CI)
 npm run check        # tests + rebuild the installable extension package
 ```
@@ -277,6 +293,14 @@ What is covered, and why each group exists:
 | `test/storage.test.js` | Import **merges** instead of replacing, export stays valid JSON at any size, the v1→v2 migration moves everything |
 | `test/canon.test.js` | URL canonicalization and the dedupe fingerprint rules (same page from different sources = duplicate; same quote from different articles = not) |
 | `test/policy.test.js` | That the code does what the first-run disclosure *says*: nothing silent before it is accepted, `Space`+`K` off on the sites the page names, muting a site silencing both behaviours |
+| `test/import.test.js` | The 13-format import engine: detection, redirect unwrapping, read-state mapping, multi-file merge |
+| `test/import-storage.test.js` | Import writes: merge-not-replace, tombstones, dry-run previews |
+| `test/export.test.js` | JSON/bookmark/Markdown export shape, sessions-as-folders, Markdown tab lists |
+| `test/classify.test.js` | The offline deck/type classifier and tag hygiene |
+| `test/samples.test.js` | First-run samples seed correctly and cover more than one deck and status |
+| `test/sessions.test.js` | Tab-session capture, restore rules, searchability, export/import round-trips |
+| `test/status.test.js` | Save-state vocabulary, indexed filters, the v1→v2 backfill upgrade |
+| `test/zip.test.js` | In-browser ZIP expansion (hand-built archives), Pocket/Omnivore end-to-end, bomb caps |
 | `test/sync.test.js` | PKCE sign-in, sharding, delta uploads, cross-device merge, delete propagation, legacy-blob migration, capped-pass convergence, expired sessions — run against an in-memory Drive + OAuth mock (`test/drive-mock.js`) |
 | `test/wiring.test.js` | "Would this extension actually load?" — every element id, import, `getURL()` target, manifest entry and packaged file resolves |
 | `test/scale.bench.js` | Query latency and import throughput at 20k/50k items, so a regression that only appears at scale cannot sneak in |
@@ -343,22 +367,31 @@ The full policy — every permission and why it is needed — lives at
 
 ## Roadmap ideas
 
-The full analysis lives in [`ideas.md`](ideas.md). Done in v1.4 (the
-"Phase 0" foundation work): the persistent search index, windowed rendering,
-sharded delta sync, merge-not-overwrite import, the local favicon cache, the
-first-run disclosure page, the published privacy policy, the test suite and CI,
-and the `Space`+`K` conflict fix.
+The full analysis lives in [`ideas.md`](ideas.md), the upcoming work in
+[`TASK.md`](TASK.md), and the shipped history in [`CHANGELOG.md`](CHANGELOG.md).
+
+- **Done in v1.4** (the "Phase 0" foundation): the persistent search index,
+  windowed rendering, sharded delta sync, merge-not-overwrite import, the local
+  favicon cache, the first-run disclosure page, the published privacy policy,
+  the test suite and CI, and the `Space`+`K` conflict fix.
+- **Done in v1.5** (Phase 1 "exist"): 13-format importers, the four refugee
+  landing pages, shutdown-proof export (JSON/bookmark/Markdown), finished
+  onboarding, and the store-submission paperwork.
+- **Done in v1.6** (Phase 2 begins): save-state triage (Unread → Reading →
+  Done → Archive) and save-all-tabs sessions with one-click restore.
+- **Done in v1.7**: ZIP archives open in the browser — Pocket and Omnivore
+  exports import straight from the download.
 
 Still open:
 
 - Publish to the Chrome Web Store, Firefox Add-ons (AMO), and Edge Add-ons —
   timed before **12 November 2026**, the anniversary of Pocket deleting all
   user data, which is when its refugees will be looking again
-- Importers for Pocket, Instapaper, Raindrop, Chrome bookmarks and browser
-  history exports (the merge-not-overwrite import path is ready for them)
-- "Refugee" landing pages for each of those audiences
+- One-click sync for non-developers (a first-party "Sign in with Google";
+  the bring-your-own-client setup stays as the advanced fallback)
+- A related-items rail on the detail view (shared tags + similarity, no full scan)
+- A clean reader view for saved article text, plus resurfacing ("daily 5")
 - Package a Safari build via `xcrun safari-web-extension-converter`
-- Smart deck suggestions that learn from your manual corrections
 - Field-level (not just record-level) conflict merging for sync
 - Optional end-to-end encryption of the synced Drive shards
 - Chrome-only progressive enhancement via the Summarizer/Prompt APIs (desktop

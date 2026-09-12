@@ -2,6 +2,20 @@
 
 All versions are the extension version in `manifest.json`.
 
+## 1.7.0 — ZIP import (12 September 2026)
+
+Phase 2 continues: the import dialog now opens ZIP archives in the browser.
+
+### Added (I-05 · import polish)
+
+- Pocket's `part_*.csv` ZIP and Omnivore's metadata + `contents/` ZIP import
+  straight from the download — no unzipping by hand. DEFLATE comes from a
+  vendored single-file codec (fflate, MIT); only importable text formats come
+  out, everything is bomb-capped (500 files / 256 MB), and failures read like
+  help ("holds no files Kipideck can import") instead of stack traces.
+- RAR, 7z and gzip are still refused, honestly: the dialog says Kipideck opens
+  ZIPs but not those, instead of pretending.
+
 ## 1.6.0 — save-states + tab sessions (12 September 2026)
 
 Phase 2 begins: two ideas from `ideas.md` ship their core.

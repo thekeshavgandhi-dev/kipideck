@@ -78,8 +78,8 @@ const FAQ = [
     a: "No. This is the one question with an answer we would rather give plainly than soften. The hosted service went offline on 15 November 2024 and the user data was deleted; there was no read-only archive and no grace period beyond the original window. No importer, no fork and no recovery service can retrieve data from a server that no longer has it. What you may still be able to rebuild from: any notes, Markdown files or emails where you kept links; your browser's own bookmarks (Kipideck imports Chrome's HTML export, its raw Bookmarks JSON file, and Firefox's); and whichever read-later app you moved to next — Raindrop, Instapaper, Pocket, Readwise Reader and Wallabag exports all import too.",
   },
   {
-    q: "My download is a ZIP. Kipideck says it can't open it.",
-    a: "That is correct, and deliberate. Omnivore's export is a ZIP containing metadata_0.json, metadata_1.json and so on, plus a contents/ folder with one HTML file per article. A browser extension with no dependencies cannot unpack an archive. Unzip it with your operating system — double-click on macOS, right-click → Extract All on Windows — then in the import dialog select every metadata JSON file and the contents/ HTML files at once. Kipideck merges the batches, rejoins each article to its metadata by slug, and de-duplicates across all of it.",
+    q: "My download is a ZIP. Do I need to unzip it first?",
+    a: "No — drop the ZIP straight into the import dialog. Kipideck opens it in your browser (nothing is uploaded anywhere), merges the metadata batches, rejoins each article to its metadata by slug, and de-duplicates across all of it. Unzipping by hand first and selecting the files still works too.",
   },
   {
     q: "Do I need to select the contents/ HTML files as well?",
@@ -183,12 +183,13 @@ export default function OmnivoreAlternativePage() {
         <h2>Rescue your library in four steps</h2>
         <ol className="import-steps">
           <li>
-            <h3>Unzip the export</h3>
+            <h3>Find the export</h3>
             <p>
-              Extract the ZIP with your operating system. You should end up with{" "}
-              <code>metadata_0.json</code>, <code>metadata_1.json</code>…, a <code>contents/</code>{" "}
-              folder full of HTML files, and a <code>highlights/</code> folder of Markdown you do not
-              need to import. Kipideck cannot open archives, and it says so instead of pretending.
+              Drop the export ZIP straight into the import dialog — it opens in your browser,
+              nothing is uploaded. Inside it should be <code>metadata_0.json</code>,{" "}
+              <code>metadata_1.json</code>…, a <code>contents/</code> folder full of HTML files
+              (the article words — the ZIP path picks these up automatically), and a{" "}
+              <code>highlights/</code> folder of Markdown you do not need to import.
             </p>
           </li>
           <li>
@@ -199,11 +200,12 @@ export default function OmnivoreAlternativePage() {
             </p>
           </li>
           <li>
-            <h3>Library → ⬆ Import → select the metadata files and the contents/ HTML files together</h3>
+            <h3>Library → ⬆ Import → select the ZIP</h3>
             <p>
-              Select every <code>metadata_*.json</code> and the article HTML files from{" "}
-              <code>contents/</code> in one go. Kipideck recognises the format from the fields,
-              merges the batches, and rejoins each article&apos;s text to its item by slug.
+              Kipideck recognises the format from the fields, merges the batches, and rejoins
+              each article&apos;s text to its item by slug. (Unzipped by hand? Select every{" "}
+              <code>metadata_*.json</code> and the <code>contents/</code> HTML files together
+              instead.)
             </p>
           </li>
           <li>

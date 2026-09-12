@@ -18,6 +18,7 @@ import { faviconMap, iconFromMap } from "../lib/favicons.js";
 import * as DriveSync from "../lib/drive-sync.js";
 import * as Import from "../lib/import.js";
 import * as Exporters from "../lib/exporters.js";
+import { expandZip, isZipName } from "../lib/unzip.js";
 import { STATUSES, STATUS_META, statusOf } from "../lib/status.js";
 import { sessionTabs, sessionAsUrlList } from "../lib/sessions.js";
 
@@ -873,7 +874,8 @@ async function runExport(format, withContent) {
  * Import — the refugee path (ideas.md I-05).
  *
  * Someone arrives holding a Pocket ZIP full of part_*.csv files, an Omnivore
- * folder of metadata_*.json, a browser bookmarks.html, or a plain list of URLs
+ * export ZIP (both opened right here — no unzipping by hand), a folder of
+ * metadata_*.json, a browser bookmarks.html, or a plain list of URLs
  * they kept in a note. So the dialog takes several files at once, works out what
  * each one is, shows exactly what will land in the library BEFORE writing
  * anything, and can be run twice without duplicating a single item.
@@ -919,11 +921,43 @@ async function openImportDialog(files) {
   confirmBtn.textContent = "Import";
   els.importModalCancel.onclick = closeImportDialog;
 
+  // Archives expand into their inner files BEFORE the read loop, so everything
+  // downstream — detection, preview, dry-run — sees plain files and never
+  // learns that some of them arrived inside a ZIP.
+  const units = [];
   for (const file of files) {
-    const entry = { name: file.name, size: file.size || 0, text: "", parsed: null, error: "" };
+    if (!isZipName(file.name)) {
+      units.push({ file });
+      continue;
+    }
     try {
-      entry.text = await file.text();
-      entry.parsed = Import.parseExport({ name: file.name, text: entry.text });
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const zip = expandZip(bytes, { outerName: file.name });
+      for (const inner of zip.files) {
+        units.push({ name: inner.name, size: inner.bytes, text: inner.text, archive: file.name });
+      }
+    } catch (err) {
+      units.push({ name: file.name, size: file.size || 0, error: (err && err.message) || String(err) });
+    }
+  }
+
+  for (const unit of units) {
+    if (unit.error) {
+      importSession.entries.push({ name: unit.name, size: unit.size, text: "", parsed: null, error: unit.error });
+      renderImportDialog();
+      continue;
+    }
+    const entry = {
+      name: unit.name || unit.file.name,
+      size: unit.size ?? unit.file.size ?? 0,
+      text: "",
+      parsed: null,
+      error: "",
+      archive: unit.archive || "",
+    };
+    try {
+      entry.text = unit.text ?? (await unit.file.text());
+      entry.parsed = Import.parseExport({ name: entry.name, text: entry.text });
     } catch (err) {
       entry.error = (err && err.message) || String(err);
     }
@@ -1013,13 +1047,13 @@ function renderImportDialog() {
     .map((entry) => {
       if (entry.error) {
         return `<div class="import-file bad">
-          <span class="import-file-name">${escapeHtml(entry.name)}</span>
+          <span class="import-file-name">${entry.archive ? escapeHtml(entry.archive) + " › " : ""}${escapeHtml(entry.name)}</span>
           <span class="import-file-note">${escapeHtml(entry.error)}</span>
         </div>`;
       }
       const count = (entry.parsed?.items || []).length;
       return `<div class="import-file">
-        <span class="import-file-name">${escapeHtml(entry.name)}</span>
+        <span class="import-file-name">${entry.archive ? escapeHtml(entry.archive) + " › " : ""}${escapeHtml(entry.name)}</span>
         <span class="import-file-note">${escapeHtml(entry.parsed?.label || "")} · ${count.toLocaleString()} found</span>
       </div>`;
     })

@@ -46,8 +46,8 @@ const FAQ = [
     a: "No, and we would rather tell you plainly than sell you hope. Mozilla disabled exports on 12 November 2025 and deleted every account's data; no copy was kept, and the API third-party recovery tools used is offline. What you can still rebuild from: your browser's own bookmarks (Kipideck imports Chrome's HTML export and its raw Bookmarks JSON file, plus Firefox's), any URL lists you kept in notes or emails, and the read-later app you moved to afterwards — Raindrop, Instapaper, Readwise Reader and Wallabag exports all import too.",
   },
   {
-    q: "My download is a ZIP. Kipideck says it can't open it.",
-    a: "That is correct, and deliberate. Pocket's final export is a ZIP of part_000000.csv, part_000001.csv and so on, and a browser extension with no dependencies cannot unpack an archive. Unzip it with your operating system (double-click on macOS, right-click → Extract All on Windows), then select every CSV in the import dialog at once. Kipideck merges them into one library and removes duplicates across the parts.",
+    q: "My download is a ZIP. Do I need to unzip it first?",
+    a: "No — drop the ZIP straight into the import dialog. Kipideck opens it in your browser (nothing is uploaded anywhere), merges every part_*.csv into one library and removes duplicates across the parts. Unzipping by hand first and selecting the CSVs still works too.",
   },
   {
     q: "Will Kipideck be deleted the way Pocket was?",
@@ -117,12 +117,13 @@ export default function PocketAlternativePage() {
         <h2>Rescue your library in four steps</h2>
         <ol className="import-steps">
           <li>
-            <h3>Unzip the export</h3>
+            <h3>Find the export</h3>
             <p>
               Pocket&apos;s final export is a ZIP containing <code>part_000000.csv</code>,{" "}
               <code>part_000001.csv</code>… Older exports are a single{" "}
-              <code>ril_export.html</code>. Extract the ZIP with your operating system — Kipideck
-              cannot open archives, and it will tell you so instead of pretending.
+              <code>ril_export.html</code>. Drop the ZIP straight into the import dialog — it
+              opens in your browser, nothing is uploaded — or unzip it by hand first; both
+              paths merge into one library.
             </p>
           </li>
           <li>
@@ -133,10 +134,11 @@ export default function PocketAlternativePage() {
             </p>
           </li>
           <li>
-            <h3>Library → ⬆ Import → select every CSV at once</h3>
+            <h3>Library → ⬆ Import → select the ZIP</h3>
             <p>
-              Kipideck recognises the format from the columns, unwraps Pocket&apos;s redirect URLs,
-              splits the pipe-separated tags, and merges all the parts into one library.
+              Kipideck opens the ZIP in your browser, recognises the format from the columns,
+              unwraps Pocket&apos;s redirect URLs, splits the pipe-separated tags, and merges all
+              the parts into one library. (Unzipped by hand? Select every CSV at once instead.)
             </p>
           </li>
           <li>

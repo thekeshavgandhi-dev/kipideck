@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Kipideck — Save & Organize Anything",
   "short_name": "Kipideck",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Save pages, links, images and text in one click. Auto-organized, searchable, stored on your own device — no account, no server.",
   "icons": {
     "16": "icons/icon16.png",
