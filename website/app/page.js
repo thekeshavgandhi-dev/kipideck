@@ -16,6 +16,7 @@ export default function Home() {
             <a href="#how">How it works</a>
             <a href="#browsers">Browsers</a>
             <a href="#sync">Sync</a>
+            <a href="#refugees">From Pocket?</a>
             <a href="/deck">Open My Deck</a>
             <DownloadButton label="⬇ Add to Chrome" className="nav-cta" />
           </nav>
@@ -54,6 +55,59 @@ export default function Home() {
         </div>
         <div className="hero-art">
           <img src="/assets/hero-screenshot.png" alt="Kipideck dashboard preview" />
+        </div>
+      </section>
+
+      <section id="refugees" className="section alt">
+        <h2>Arriving from Pocket or Omnivore?</h2>
+        <p className="section-lede">
+          Both shut down and deleted their users&apos; libraries. If you downloaded your export before
+          the deadline, Kipideck reads that file — tags, dates, read state, highlights and all — and
+          puts the result on your own device, where no company can switch it off.
+        </p>
+        <div className="grid grid-3">
+          <a className="card card-link" href="/pocket-alternative">
+            <div className="card-ico">🧭</div>
+            <h3>Moving from Pocket</h3>
+            <p>
+              Mozilla deleted every Pocket library on <strong>12 November 2025</strong>. Import the{" "}
+              <code>part_*.csv</code> files or <code>ril_export.html</code> and keep your tags, save
+              dates and archive state.
+            </p>
+            <span className="card-more">Rescue a Pocket export →</span>
+          </a>
+          <a className="card card-link" href="/omnivore-alternative">
+            <div className="card-ico">📚</div>
+            <h3>Moving from Omnivore</h3>
+            <p>
+              Switched off on <strong>15 November 2024</strong>, about two weeks after the
+              announcement. Import <code>metadata_*.json</code> together with the{" "}
+              <code>contents/</code> HTML and the article text comes with it.
+            </p>
+            <span className="card-more">Rescue an Omnivore export →</span>
+          </a>
+          <a className="card card-link" href="/raindrop-alternative">
+            <div className="card-ico">🌧️</div>
+            <h3>Keeping Raindrop?</h3>
+            <p>
+              Raindrop is alive and good — keep it. Also keep a copy of the backup you already make,
+              on your own device, with no subscription and no server.
+            </p>
+            <span className="card-more">Mirror a Raindrop backup →</span>
+          </a>
+        </div>
+
+        <div className="callout" style={{ marginTop: 26 }}>
+          <strong>One honest sentence before you click.</strong> If you never exported, your data is
+          gone — no importer, fork or recovery service can retrieve it from a server that already
+          deleted it, and neither company kept a copy. These pages rescue the file you already have.
+          They cannot conjure one, and anyone who claims otherwise is selling you hope.
+        </div>
+
+        <div className="hero-ctas center">
+          <a className="btn btn-ghost" href="/shutdown-proof">
+            Read the shutdown-proof pledge →
+          </a>
         </div>
       </section>
 
@@ -305,6 +359,10 @@ export default function Home() {
             Kipideck
           </div>
           <nav className="footer-links">
+            <a href="/pocket-alternative">Moving from Pocket</a>
+            <a href="/omnivore-alternative">Moving from Omnivore</a>
+            <a href="/raindrop-alternative">Moving from Raindrop</a>
+            <a href="/shutdown-proof">Shutdown-proof pledge</a>
             <a href="/deck">Open My Deck</a>
             <a href="/sync-setup">Sync setup guide</a>
             <a href="#install">Install</a>

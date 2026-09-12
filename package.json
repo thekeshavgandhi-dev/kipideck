@@ -1,6 +1,6 @@
 {
   "name": "kipideck",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "Kipideck browser extension \u2014 local-first save & auto-organize. Root package exists only for the test harness; the shipping extension has zero runtime dependencies.",
   "type": "module",

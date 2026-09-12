@@ -43,6 +43,40 @@ describe("before the first-run disclosure is accepted", () => {
       assert.equal(policy.spaceKQuickSave, false, host);
     }
   });
+
+  // ideas.md I-03: the first-run page can now save a demo page and seed three
+  // sample items. Both are fine — the user pressed a button — but neither may
+  // open the gate, or the page's central promise ("nothing is captured
+  // automatically until you choose below") would be false.
+  test("saving a demo item does not count as accepting the disclosure", async () => {
+    await Storage.saveItem({
+      type: "page",
+      title: "Kipideck — what it saves",
+      url: "https://example.com/demo",
+      content: "the first-run page, saved as a demo",
+    });
+
+    const settings = await Storage.getSettings();
+    assert.equal(settings.onboardingDone, false, "an explicit save is not consent to auto-capture");
+
+    const policy = await capturePolicyFor("example.com", settings);
+    assert.equal(policy.autoSaveSelection, false);
+    assert.equal(policy.spaceKQuickSave, false);
+    assert.equal(await anySilentCaptureAllowed("example.com", settings), false);
+  });
+
+  test("seeding the sample items does not count as accepting the disclosure", async () => {
+    const { seedSamples } = await import("../lib/samples.js");
+    await seedSamples();
+
+    const settings = await Storage.getSettings();
+    assert.equal(settings.onboardingDone, false, "seeding samples is not consent either");
+
+    const policy = await capturePolicyFor("example.com", settings);
+    assert.equal(policy.autoSaveSelection, false);
+    assert.equal(policy.spaceKQuickSave, false);
+    assert.equal(await anySilentCaptureAllowed("example.com", settings), false);
+  });
 });
 
 describe("after the disclosure is accepted", () => {

@@ -1,6 +1,6 @@
 # Kipideck — Upcoming tasks
 
-**Last updated:** 12 September 2026 · **Companion:** [`PROGRESS.md`](./PROGRESS.md) (what's done), [`ideas.md`](./ideas.md) (the full idea list)
+**Last updated:** 12 September 2026 · **Status:** Now — finish Phase 1: **all seven tasks done (v1.5.0)** · **Companion:** [`PROGRESS.md`](./PROGRESS.md) (what's done), [`ideas.md`](./ideas.md) (the full idea list)
 
 Ordered by what unblocks the most. Each task has acceptance criteria that are testable — if it can't
 be checked, it isn't finished. Effort: XS < 1 h · S ≈ half a day · M ≈ 1–2 days · L ≈ a week.
@@ -26,90 +26,90 @@ Omnivore's users got 17 days (announced 29 Oct 2024, deleted 15 Nov 2024) and 50
 The structural story is the strongest one we have: **Omnivore was open source and still died**, because
 the hosted library was the product. Kipideck has no hosted library.
 
-- [ ] Facts, dated and correct: acqui-hire by ElevenLabs, 15 Nov 2024 shutdown, repo archived, the
+- [x] Facts, dated and correct: acqui-hire by ElevenLabs, 15 Nov 2024 shutdown, repo archived, the
       community fork cannot recover deleted cloud data.
-- [ ] Export anatomy: `metadata_*.json` (batches) + `contents/<slug>.html` + `highlights/*.md`.
-- [ ] Steps: unzip → select **all** `metadata_*.json` **and** the `contents/` HTML files → Kipideck
+- [x] Export anatomy: `metadata_*.json` (batches) + `contents/<slug>.html` + `highlights/*.md`.
+- [x] Steps: unzip → select **all** `metadata_*.json` **and** the `contents/` HTML files → Kipideck
       rejoins them by slug, so article text survives, not just links.
-- [ ] What survives table: labels→tags, `savedAt`, ARCHIVED state, highlights + annotations → notes,
+- [x] What survives table: labels→tags, `savedAt`, ARCHIVED state, highlights + annotations → notes,
       author, preview image, **article text**.
-- [ ] FAQ: "open source didn't save it — why would local-first?", "what if I only kept the metadata?",
+- [x] FAQ: "open source didn't save it — why would local-first?", "what if I only kept the metadata?",
       "can I recover data I never exported?" (no).
-- [ ] Uses `PageShell`; builds as a static route; linked from the footer (already is) and homepage.
+- [x] Uses `PageShell`; builds as a static route; linked from the footer (already is) and homepage.
 
 ### T2 · `/shutdown-proof` pledge page — I-07 · **S**
 
 The page people look for *before* they look at features.
 
-- [ ] The pledge as a list of structural facts, not promises: no server, no account, data in the
+- [x] The pledge as a list of structural facts, not promises: no server, no account, data in the
       browser's own storage, optional sync to **your** Drive with **your** OAuth client, export any
       time in three open formats, import is a first-class feature.
-- [ ] "How to leave in three clicks" — Library → ⬇ → pick a format.
-- [ ] **What we cannot promise** (this section is the credibility): browser APIs change; an extension
+- [x] "How to leave in three clicks" — Library → ⬇ → pick a format.
+- [x] **What we cannot promise** (this section is the credibility): browser APIs change; an extension
       you never update can stop working; if you never export and your disk dies, that is a backup
       problem — turn on sync or export regularly.
-- [ ] The read-later graveyard timeline: Omnivore 15 Nov 2024, Pocket 12 Nov 2025. No predictions
+- [x] The read-later graveyard timeline: Omnivore 15 Nov 2024, Pocket 12 Nov 2025. No predictions
       about living products.
-- [ ] Links to `docs/EXPORT_FORMAT.md` and the privacy policy.
+- [x] Links to `docs/EXPORT_FORMAT.md` and the privacy policy.
 
 ### T3 · `/raindrop-alternative` page — I-06 · **S**
 
 Raindrop is alive and good — the page must not pretend otherwise, or it reads as spam and loses the
 trust the other two pages earned.
 
-- [ ] Angle: *keep Raindrop, also keep a copy that needs no subscription and no server* — plus a real
+- [x] Angle: *keep Raindrop, also keep a copy that needs no subscription and no server* — plus a real
       migration path for people leaving.
-- [ ] Import specifics: Settings → Backup → JSON; Kipideck keeps tags, collections → tags, notes,
+- [x] Import specifics: Settings → Backup → JSON; Kipideck keeps tags, collections → tags, notes,
       `important` → favourite, type (image/video/article), created dates, **highlights**.
-- [ ] Repeatable mirror: importing the same backup again adds nothing (canonical-URL dedupe).
-- [ ] Comparison table with no unverifiable pricing claims — say "some features need a paid plan",
+- [x] Repeatable mirror: importing the same backup again adds nothing (canonical-URL dedupe).
+- [x] Comparison table with no unverifiable pricing claims — say "some features need a paid plan",
       not a number we cannot keep current.
 
 ### T4 · `docs/EXPORT_FORMAT.md` — I-07 · **S**
 
 The pledge promises a *documented* schema. Without this file the promise is marketing.
 
-- [ ] JSON: envelope (`version`, `app`, `exportedAt`, `counts`, `decks`, `settings`, `tombstones`,
+- [x] JSON: envelope (`version`, `app`, `exportedAt`, `counts`, `decks`, `settings`, `tombstones`,
       `items`), every item field with type + meaning + which are optional, and the rule that
       `content` is absent when empty.
-- [ ] Deck and settings objects; tombstone shape (`id`, `canon`, `deletedAt`) and why canon is there.
-- [ ] Bookmark HTML mapping table: deck → `<H3>` folder, tags → `TAGS`, note → `<DD>`, pinned →
+- [x] Deck and settings objects; tombstone shape (`id`, `canon`, `deletedAt`) and why canon is there.
+- [x] Bookmark HTML mapping table: deck → `<H3>` folder, tags → `TAGS`, note → `<DD>`, pinned →
       `PRIVATE="1"`, dates → Unix seconds.
-- [ ] Markdown structure and where page text goes (`<details>`).
-- [ ] A worked example: 20 lines of real export output, annotated.
-- [ ] Re-import guarantees: which fields round-trip through which format (link the tests that prove it).
+- [x] Markdown structure and where page text goes (`<details>`).
+- [x] A worked example: 20 lines of real export output, annotated.
+- [x] Re-import guarantees: which fields round-trip through which format (link the tests that prove it).
 
 ### T5 · Homepage: the refugee funnel — I-06 · **XS**
 
-- [ ] A section near the top of the page: "Arriving from Pocket or Omnivore?" → the two pages.
-- [ ] Footer links to all four new pages (nav already has `/shutdown-proof`).
-- [ ] One honest sentence about what cannot be recovered, so the pages aren't clicked on false hope.
+- [x] A section near the top of the page: "Arriving from Pocket or Omnivore?" → the two pages.
+- [x] Footer links to all four new pages (nav already has `/shutdown-proof`).
+- [x] One honest sentence about what cannot be recovered, so the pages aren't clicked on false hope.
 
 ### T6 · `docs/STORE_SUBMISSION.md` — I-01 · **M**
 
 The #1 conversion killer is sideloading. This is the paperwork that ends it.
 
-- [ ] Decision recorded: **keep `<all_urls>`** with a written justification (saving from any page is
+- [x] Decision recorded: **keep `<all_urls>`** with a written justification (saving from any page is
       the core feature; `activeTab` alone breaks the content-script capture path), *and* document the
       optional-host-permission variant as a fallback if review pushes back.
-- [ ] Permission-by-permission justification table, matching `/privacy` exactly (they must not drift).
-- [ ] Single purpose, remote-code, data-handling and privacy-policy answers for the CWS form.
-- [ ] Listing copy: title, short description, full description leading with the trust story +
+- [x] Permission-by-permission justification table, matching `/privacy` exactly (they must not drift).
+- [x] Single purpose, remote-code, data-handling and privacy-policy answers for the CWS form.
+- [x] Listing copy: title, short description, full description leading with the trust story +
       importer, not features.
-- [ ] Screenshot/video shot list (library grid, import preview, reader-less detail view, onboarding).
-- [ ] Edge Add-ons + Firefox AMO deltas (Firefox needs the `browser_specific_settings` gecko id).
-- [ ] Pre-submission checklist: version bump to **1.5.0**, `npm run check`, zip regenerated.
+- [x] Screenshot/video shot list (library grid, import preview, reader-less detail view, onboarding).
+- [x] Edge Add-ons + Firefox AMO deltas (Firefox needs the `browser_specific_settings` gecko id).
+- [x] Pre-submission checklist: version bump to **1.5.0**, `npm run check`, zip regenerated.
 
 ### T7 · Finish I-03 onboarding — **M**
 
 Disclosure ships; the first 60 seconds still don't.
 
-- [ ] One-click "save this demo page" that produces a real item.
-- [ ] Three pre-seeded sample items (deletable, clearly marked) so search and decks demo themselves.
-- [ ] Deck tour + keyboard-shortcut card.
-- [ ] **"Import from…" shortcut on the first-run page** — a refugee should be able to go install →
+- [x] One-click "save this demo page" that produces a real item.
+- [x] Three pre-seeded sample items (deletable, clearly marked) so search and decks demo themselves.
+- [x] Deck tour + keyboard-shortcut card.
+- [x] **"Import from…" shortcut on the first-run page** — a refugee should be able to go install →
       import without ever finding the ⬆ button.
-- [ ] Test: nothing is captured silently before the disclosure is accepted (already covered by
+- [x] Test: nothing is captured silently before the disclosure is accepted (already covered by
       `test/policy.test.js` — extend, don't duplicate).
 
 ---
@@ -135,8 +135,50 @@ Disclosure ships; the first 60 seconds still don't.
 
 ---
 
+## Bugs found during the QA pass (and fixed)
+
+A full read-through and test run of the repository before starting T1 surfaced two real defects, both
+of which were live on the site rather than hypothetical. They are recorded here because they are the
+kind of thing that recurs — and because "the suite is green" did not catch either of them.
+
+### B1 · Three 404s in every page footer
+
+`PageShell.js` linked to `/omnivore-alternative`, `/raindrop-alternative` and `/shutdown-proof`.
+None existed. Since `PageShell` renders the footer on every content page, **every page on the site
+had three broken links** — including `/pocket-alternative`, which links to all three in its
+"Not arriving from Pocket?" card.
+
+- *Why the tests missed it:* the suite has no link-integrity check. `npm run build` happily built 6
+  static routes while the footer advertised 9.
+- *Fixed by:* T1, T2 and T3 creating the three pages.
+- *Verified by:* crawling every internal `href` on every built page and asserting a 200 — all resolve.
+- *Worth adding:* a link-integrity test over the built output, so a future page rename cannot
+  silently reintroduce this.
+
+### B2 · `globals.css` had a 48-line block duplicated verbatim
+
+Lines 271–318 were byte-identical to lines 110–157 (`.rescue-stats` through `.page-cta`).
+
+- *Fixed by:* removing the duplicate. 327 → 286 lines, braces balanced, **zero unique rules lost**
+  (verified by set-diffing every statement against a backup).
+- *Trap:* the duplicated block ended **mid-media-query** — its last line was the opening
+  `@media (max-width: 880px) {`. Deleting the block therefore also deleted that brace and broke the
+  CSS parse. The first attempt did exactly this and the build failed with `Unexpected end of input`.
+  The opening brace was restored manually. A contiguous-run duplicate detector should stop at rule
+  boundaries, not at the longest match.
+
+### Also noted
+
+- `npm test` on a fresh clone **fails 7 of 10 suites** with `ERR_MODULE_NOT_FOUND` until `npm install`
+  runs (no `node_modules` committed, as expected). It looks like a code regression but is not. Now
+  called out in `PROGRESS.md`.
+- `.pledge-list` existed in the stylesheet but was used nowhere — dead CSS left in anticipation of the
+  pledge page. It is now used, by `/shutdown-proof`.
+
 ## Timing note
 
 Pocket deleted user data on **12 November 2025**. The first anniversary — **November 2026**, two
 months from now — is when "they deleted my library" retrospectives get written and searched (I-28).
-T1–T6 should be live and indexed before then; that is the deadline that matters, not the roadmap table.
+T1–T6 are now live and build as static routes; what remains is getting them **indexed** before then,
+which means the store submissions (I-01) and the directory listings (I-28). That is the deadline that
+matters, not the roadmap table.
