@@ -202,6 +202,45 @@ const KIPI_JSON = JSON.stringify({
   tombstones: [],
 });
 
+
+// ---------------------------------------------------------------------------
+// Fixtures for the split-export case (Omnivore: metadata JSON + article HTML)
+// ---------------------------------------------------------------------------
+
+const ARTICLE_SLUG = "the-deep-work-essay";
+
+const ARTICLE_HTML = `<!DOCTYPE html>
+<html><head>
+<title>Deep work essay</title>
+<meta name="original-url" content="https://blog.example/deep-work">
+<link rel="canonical" href="https://blog.example/deep-work">
+</head>
+<body>
+<nav>Home About Subscribe</nav>
+<article>
+<h1>Deep work essay</h1>
+<p>The first paragraph of the essay, long enough to count as real article text rather than a stub page.</p>
+<p>Second paragraph with an <a href="https://ref.example">inline reference</a> inside it.</p>
+<p>Third paragraph follows here. <script>var tracking = "should never be indexed";</script></p>
+<p>Fourth paragraph closes the piece out neatly and gives the prose density test something to chew on.</p>
+<p>Fifth paragraph for good measure, so a real article is never mistaken for a link list.</p>
+</article>
+<footer>Copyright 2024</footer>
+</body></html>`;
+
+const OMNIVORE_WITH_SLUG = JSON.stringify([
+  {
+    id: "o1",
+    slug: ARTICLE_SLUG,
+    title: "Deep work essay",
+    originalUrl: "https://blog.example/deep-work",
+    labels: [{ name: "focus" }],
+    savedAt: "2024-02-03T04:05:06Z",
+    state: "ARCHIVED",
+    highlights: [{ quote: "attention is the currency", annotation: "yes" }],
+  },
+]);
+
 const normalize = (file, opts) => toKipideckItems(parseExport(file), opts);
 const byUrl = (items, needle) => items.find((i) => i.url.includes(needle));
 
@@ -568,6 +607,78 @@ describe("Kipideck's own export", () => {
     assert.equal(byUrl(items, "mine.example/a").note, "my note");
   });
 });
+
+// ---------------------------------------------------------------------------
+describe("single-article HTML — the other half of a split export", () => {
+  test("a prose file is recognised as an article, not as a bookmark list", () => {
+    assert.equal(detectFormat({ name: `${ARTICLE_SLUG}.html`, text: ARTICLE_HTML }).id, "article-html");
+  });
+
+  test("the canonical URL, title and text come out of it", () => {
+    const parsed = parseExport({ name: `${ARTICLE_SLUG}.html`, text: ARTICLE_HTML });
+    assert.equal(parsed.format, "article-html");
+    assert.equal(parsed.items.length, 1);
+    const article = parsed.items[0];
+    assert.equal(article.url, "https://blog.example/deep-work");
+    assert.equal(article.title, "Deep work essay");
+    assert.match(article.content, /first paragraph of the essay/);
+    assert.equal(article.slug, ARTICLE_SLUG, "the filename is the join key");
+  });
+
+  test("navigation, footers and scripts do not become article text", () => {
+    const { content } = parseExport({ name: "a.html", text: ARTICLE_HTML }).items[0];
+    assert.ok(!content.includes("Subscribe"), "nav leaked into the text");
+    assert.ok(!content.includes("Copyright"), "footer leaked into the text");
+    assert.ok(!content.includes("should never be indexed"), "script text leaked into the article");
+    assert.match(content, /inline reference/, "an inline link's words are part of the prose");
+  });
+
+  test("a stub with no real text is not imported as an article", () => {
+    const parsed = parseExport({ name: "stub.html", text: "<html><body><article><p>Too short.</p></article></body></html>" });
+    assert.equal(parsed.items.length, 0);
+    assert.ok(parsed.warnings.some((w) => /not contain enough article text/i.test(w)));
+  });
+
+  test("bookmark files are never mistaken for articles", () => {
+    const chrome = parseExport({ name: "bookmarks.html", text: CHROME_HTML });
+    assert.equal(chrome.format, "bookmarks-html");
+    const pocket = parseExport({ name: "ril_export.html", text: POCKET_HTML });
+    assert.equal(pocket.format, "pocket-html");
+  });
+
+  test("metadata JSON + article HTML rejoin into one item, text included", () => {
+    const combined = combineParsed([
+      parseExport({ name: "metadata_0.json", text: OMNIVORE_WITH_SLUG }),
+      parseExport({ name: `${ARTICLE_SLUG}.html`, text: ARTICLE_HTML }),
+    ]);
+    assert.equal(combined.joinedArticleText, 1);
+    assert.ok(combined.warnings.some((w) => /Article text recovered/i.test(w)));
+
+    const { items } = toKipideckItems(combined);
+    assert.equal(items.length, 1, "the two halves are one item, not two");
+    const item = items[0];
+    assert.match(item.content, /first paragraph of the essay/, "the article text survived the join");
+    assert.match(item.note, /attention is the currency/, "highlights still become notes");
+    assert.ok(item.tags.includes("focus"), "labels still become tags");
+    assert.ok(item.tags.includes("archive"), "read state still survives");
+    assert.equal(new Date(item.createdAt).toISOString().slice(0, 10), "2024-02-03", "save date still survives");
+  });
+
+  test("an article file with no metadata partner still imports if it has a URL", () => {
+    const { items } = toKipideckItems(combineParsed([parseExport({ name: "lonely.html", text: ARTICLE_HTML })]));
+    assert.equal(items.length, 1);
+    assert.equal(items[0].url, "https://blog.example/deep-work");
+    assert.equal(items[0].title, "Deep work essay");
+  });
+
+  test("an article file with neither URL nor partner is reported, not silently dropped", () => {
+    const noUrl = ARTICLE_HTML.replace(/<link rel="canonical"[^>]*>/, "").replace(/<meta name="original-url"[^>]*>/, "");
+    const combined = combineParsed([parseExport({ name: "orphan.html", text: noUrl })]);
+    assert.equal(combined.items.length, 0);
+    assert.ok(combined.warnings.some((w) => /no URL and no matching metadata/i.test(w)), JSON.stringify(combined.warnings));
+  });
+});
+
 
 // ---------------------------------------------------------------------------
 describe("normalisation options", () => {

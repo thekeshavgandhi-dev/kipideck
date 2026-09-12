@@ -1,7 +1,8 @@
 # Kipideck — Ideas to Beat Everyone
 
 **Companion:** [`RESEARCH.md`](./RESEARCH.md) — full competitor analysis, review synthesis, comparison matrix.
-**Date:** 2026-09-11 · Living doc: check off `✅` as shipped.
+**Status:** [`PROGRESS.md`](./PROGRESS.md) — what is shipped and measured · [`TASK.md`](./TASK.md) — what is next, with acceptance criteria.
+**Date:** 2026-09-11 (updated 2026-09-12) · Living doc: check off `✅` as shipped.
 
 > Strategy in one line: **own trust** (local-first, free, shutdown-proof), **match capture**,
 > **win find-it-again with free AI**, and **absorb adjacent jobs** (tabs, reader, highlights, audio)
@@ -58,18 +59,21 @@ Items below marked **v1.4 (partial)** were started here and still have work left
 
 ## P1 — Capture the refugee wave (highest ROI growth, do within weeks)
 
-- [ ] **I-05 · Pocket HTML + Instapaper CSV + Raindrop + browser-bookmark importers** 🔥🔥🔥🔥🔥 · Effort S–M
+- [x] **I-05 · Pocket HTML + Instapaper CSV + Raindrop + browser-bookmark importers** 🔥🔥🔥🔥🔥 · Effort S–M — **shipped (Phase 1)**
   Problem: millions mid-migration; winners all ship importers (Readwise 6/6, Matter 2-tap, Raindrop/Instapaper/Wallabag all accept Pocket HTML) (R§5.2). Kipideck has zero.
   Build: Library → Import: Pocket `.html`/`.csv`, Instapaper export, Raindrop backup, Chrome/Firefox bookmark HTML, generic URL list. Preserve tags, dates, read-state; auto-run classifier on import; show "N items rescued" celebration.
   Metric: imports/week; % of new users arriving via "Pocket alternative" pages.
-- [ ] **I-06 · "Welcome, Pocket & Omnivore refugees" landing + SEO pages** 🔥🔥🔥🔥 · Effort S
+  ✅ `lib/import.js`: **13 formats** — Pocket CSV *and* `ril_export.html` (redirect wrappers unwrapped, read state from the Unread/Read-Archive sections), Instapaper, Raindrop, Omnivore metadata **plus its `contents/<slug>.html` article text rejoined by slug**, Pinboard, Wallabag, Readwise Reader, browser bookmark HTML (nested folders → tags, Firefox `TAGS`/`PRIVATE`/`<DD>`), Chrome's raw `Bookmarks` JSON (1601-epoch microseconds), plain URL/Markdown lists, and our own JSON. Tags/dates/read-state preserved; archive and favourite become tags; highlights and annotations become notes; classifier runs when the target deck is "auto-organise". Multi-file import merges Pocket's `part_*.csv` and Omnivore's `metadata_*.json`; dedupe is by canonical URL within a file, across files, and against the library (tombstones now carry canon, so a delete survives re-import); preview-before-write with per-file warnings, a progress bar, and an "N items rescued" panel. 20k-row CSV parses in ~450 ms; 2,000 records write + index in ~755 ms. Still open: the extension cannot unzip (`TASK.md` T-list, Phase 2). Covered by `test/import.test.js` (95) + `test/import-storage.test.js` (15).
+- [ ] **I-06 · "Welcome, Pocket & Omnivore refugees" landing + SEO pages** 🔥🔥🔥🔥 · Effort S — **in progress (1 of 4 pages live)**
   Problem: Matter/Readwise/Wallabag openly campaign for refugees; Kipideck invisible (R§3.1).
   Build: `/pocket-alternative`, `/omnivore-alternative`, `/raindrop-alternative` pages: honest comparison table (reuse R§6), 3-step migration guide, "your data can't be deleted by us" guarantee. Submit to alternative-to directories.
   Metric: organic signups/installs from these pages.
-- [ ] **I-07 · "Shutdown-proof" guarantee page + full export (JSON/HTML/Markdown)** 🔥🔥🔥🔥 · Effort S
+  🟡 `/pocket-alternative` ships: verified shutdown timeline (22 May / 8 Jul / **12 Nov 2025** deletion), the four-step rescue, a what-survives table that admits Pocket never exported article text, a comparison table, and six FAQs including "I never exported — can I recover it?" (no). `app/components/PageShell.js` gives the remaining pages one shared nav/footer. Still to build: `/omnivore-alternative`, `/raindrop-alternative`, `/shutdown-proof`, and the homepage funnel (`TASK.md` T1–T3, T5). Directory submissions not started.
+- [ ] **I-07 · "Shutdown-proof" guarantee page + full export (JSON/HTML/Markdown)** 🔥🔥🔥🔥 · Effort S — **exports shipped; pledge page + schema doc pending**
   Problem: post-shutdown, users ask "what happens if you die?" before asking about features; mymind's thin export is hated (R§4.2/4.11).
   Build: public pledge — readable local format, one-click export of *everything incl. full text + notes + tags*, documented schema, "works forever offline even if we vanish". Export to portable HTML (Netscape bookmark format = imports everywhere) + Markdown vault.
   Beats: literally every cloud competitor on the question users now ask first.
+  🟡 `lib/exporters.js` + `Storage.exportBookmarkHtml()` / `exportMarkdown()` join the existing streamed JSON export, all three chunked so a 50k library never becomes one string, and offered in a Library export dialog that states each format's trade-off. Bookmark HTML carries links, titles, `ADD_DATE`, one folder per deck, `TAGS`, `<DD>` notes and `PRIVATE` for pins; Markdown carries the library as notes with optional page text in `<details>`. Our own bookmark export re-imports through our own importer with URLs, titles, tags, dates, folders and notes intact — asserted as a round trip in `test/export.test.js` (25). 1,000 items export to HTML in ~12 ms. Still to build: `docs/EXPORT_FORMAT.md` (the "documented schema" half) and the public `/shutdown-proof` pledge page (`TASK.md` T2, T4).
 
 ## P2 — Win "consume" (reader, highlights, audio, recall)
 
