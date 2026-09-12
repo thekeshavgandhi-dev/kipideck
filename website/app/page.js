@@ -295,15 +295,16 @@ export default function Home() {
             <h3>🦊 Firefox</h3>
             <ol>
               <li>
-                Click <strong>Download Kipideck</strong> above and <strong>unzip</strong> the file
-                (double-click it) to get the <code>kipideck</code> folder.
+                Click <strong>Download Kipideck</strong> above — on Firefox the button downloads
+                the Firefox package, <code>kipideck-extension-firefox.zip</code>.{" "}
+                <strong>Unzip it</strong> (double-click it) to get its folder.
               </li>
               <li>
                 Open <code>about:debugging#/runtime/this-firefox</code> in Firefox.
               </li>
               <li>
                 Click <strong>Load Temporary Add-on…</strong> and pick{" "}
-                <code>manifest.json</code> inside the unzipped <code>kipideck</code> folder.
+                <code>manifest.json</code> inside the folder you just unzipped.
               </li>
               <li>
                 Pin it to your toolbar and start saving with a right-click →{" "}

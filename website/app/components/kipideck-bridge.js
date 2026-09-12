@@ -6,8 +6,33 @@
 // (their local items + their Google Drive synced items). The website itself
 // can never read extension data — it only sends "please open" requests.
 
-export const DOWNLOAD_URL = "/downloads/kipideck-extension.zip";
-export const DOWNLOAD_FILENAME = "kipideck-extension.zip";
+// Two packages, because one manifest cannot serve both engines (see
+// docs/STORE_SUBMISSION.md §7): the Chromium package declares
+// background.service_worker, Firefox runs an event page declared with
+// background.scripts and ignores service_worker entirely — shipping Firefox the
+// Chromium package gives it an extension whose background never runs.
+export const DOWNLOADS = {
+  chromium: {
+    url: "/downloads/kipideck-extension.zip",
+    filename: "kipideck-extension.zip",
+    label: "it's free",
+  },
+  firefox: {
+    url: "/downloads/kipideck-extension-firefox.zip",
+    filename: "kipideck-extension-firefox.zip",
+    label: "it's free",
+  },
+};
+
+export const DOWNLOAD_URL = DOWNLOADS.chromium.url;
+export const DOWNLOAD_FILENAME = DOWNLOADS.chromium.filename;
+
+/** Client-side only: the server has no idea which browser is asking. */
+export function downloadTarget() {
+  const isFirefox =
+    typeof navigator !== "undefined" && /firefox|fxios|iceweasel/i.test(navigator.userAgent);
+  return isFirefox ? DOWNLOADS.firefox : DOWNLOADS.chromium;
+}
 
 function snapDetected() {
   if (typeof window === "undefined") return false;
@@ -113,11 +138,13 @@ export function requestItemCount(timeoutMs = 1500) {
 }
 
 // Start the extension .zip download (same-origin, so the download attribute works).
+// Picks the package for the browser that is actually asking.
 export function startDownload() {
   if (typeof window === "undefined") return;
+  const target = downloadTarget();
   const a = document.createElement("a");
-  a.href = DOWNLOAD_URL;
-  a.download = DOWNLOAD_FILENAME;
+  a.href = target.url;
+  a.download = target.filename;
   document.body.appendChild(a);
   a.click();
   a.remove();

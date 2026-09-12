@@ -357,6 +357,61 @@ describe("manifest", () => {
     assert.ok(read("background/background.js").includes('from "../lib/storage.js"'));
   });
 
+  // These three are the rejections Edge Add-ons came back with on the first
+  // upload attempt (2026-09-12). They are store rules, not browser rules: Chrome
+  // loads the `scripts` key happily, so nothing local would ever catch them.
+  test("the description fits the 132-character store limit", () => {
+    assert.equal(
+      typeof manifest.description,
+      "string",
+      "both stores show manifest.description on the listing page"
+    );
+    assert.ok(
+      manifest.description.length <= 132,
+      `description is ${manifest.description.length} chars; the Chrome Web Store and Edge Add-ons cap it at 132`
+    );
+  });
+
+  test("the Chromium manifest uses service_worker and never background.scripts", () => {
+    // "The background.scripts field cannot be used with manifest version 3."
+    assert.equal(manifest.manifest_version, 3);
+    assert.ok(manifest.background.service_worker, "MV3 Chromium needs background.service_worker");
+    assert.equal(
+      manifest.background.scripts,
+      undefined,
+      "background.scripts is rejected by the Chromium store validators — it belongs in " +
+        "tools/firefox-manifest-overlay.json"
+    );
+  });
+
+  test("the Chromium manifest carries no Firefox-only keys", () => {
+    assert.equal(
+      manifest.browser_specific_settings,
+      undefined,
+      "browser_specific_settings.gecko is AMO-only; Chromium reviewers flag it as an unrecognized key"
+    );
+  });
+
+  test("the Firefox overlay restores what the Firefox package needs", () => {
+    const overlay = JSON.parse(read("tools/firefox-manifest-overlay.json"));
+    assert.deepEqual(
+      overlay.background.scripts,
+      [manifest.background.service_worker],
+      "Firefox MV3 runs an event page declared with scripts, pointing at the same file"
+    );
+    assert.equal(overlay.background.type, "module", "background.js uses static ES imports");
+    assert.equal(
+      overlay.background.service_worker,
+      null,
+      "service_worker must be deleted for Firefox: on Firefox < 121 its presence stops the " +
+        "event page from ever starting (bug 1860304)"
+    );
+    assert.ok(
+      overlay.browser_specific_settings?.gecko?.id,
+      "AMO signing requires browser_specific_settings.gecko.id"
+    );
+  });
+
   test("the version matches what the website advertises", () => {
     const advertised = JSON.parse(read("website/public/downloads/version.json"));
     assert.equal(
@@ -391,5 +446,53 @@ describe("distribution package", () => {
     const meta = JSON.parse(read("website/public/downloads/version.json"));
     assert.ok(meta.size > 20_000, `zip looks too small to contain the extension (${meta.size} bytes)`);
     assert.ok(meta.sizeKB >= Math.round(meta.size / 1024) - 1);
+  });
+
+  // Read the real artifacts, not the source: the store uploads the zip, so the
+  // zip is the thing that has to be valid.
+  test("the store packages put manifest.json at the zip root", () => {
+    const names = (zip) =>
+      execFileSync("unzip", ["-Z1", join(repoRoot, zip)], { encoding: "utf8" })
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+    for (const zip of [
+      "website/public/downloads/kipideck-extension-chromium.zip",
+      "website/public/downloads/kipideck-extension-firefox.zip",
+    ]) {
+      const entries = names(zip);
+      assert.ok(
+        entries.includes("manifest.json"),
+        `${zip} has no manifest.json at the root — store validators reject that outright`
+      );
+      assert.ok(entries.includes("background/background.js"), `${zip} is missing the background script`);
+    }
+
+    // The website download keeps the nested kipideck/ folder the install docs
+    // tell people to select after unzipping.
+    assert.ok(
+      names("website/public/downloads/kipideck-extension.zip").includes("kipideck/manifest.json"),
+      "the website download should nest everything under kipideck/"
+    );
+  });
+
+  test("each store package ships only that browser's manifest keys", () => {
+    const manifestIn = (zip) =>
+      JSON.parse(
+        execFileSync("unzip", ["-p", join(repoRoot, zip), "manifest.json"], { encoding: "utf8" })
+      );
+
+    const chromium = manifestIn("website/public/downloads/kipideck-extension-chromium.zip");
+    assert.ok(chromium.background.service_worker, "Chromium needs background.service_worker");
+    assert.equal(chromium.background.scripts, undefined, "Edge rejects background.scripts in MV3");
+    assert.equal(chromium.browser_specific_settings, undefined, "gecko settings are Firefox-only");
+    assert.ok(chromium.description.length <= 132);
+
+    const firefox = manifestIn("website/public/downloads/kipideck-extension-firefox.zip");
+    assert.ok(firefox.background.scripts?.length, "Firefox MV3 needs background.scripts");
+    assert.equal(firefox.background.type, "module");
+    assert.equal(firefox.background.service_worker, undefined, "stops Firefox < 121 event pages");
+    assert.ok(firefox.browser_specific_settings?.gecko?.id, "AMO signing needs a gecko id");
   });
 });

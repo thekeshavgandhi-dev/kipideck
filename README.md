@@ -148,18 +148,22 @@ codebase** runs unmodified on:
 | Edge | ✅ Fully supported |
 | Brave | ✅ Fully supported |
 | Opera | ✅ Fully supported |
-| Firefox | ✅ Fully supported (Manifest V3 with an event-page background, per Firefox's MV3 implementation) |
+| Firefox | ✅ Fully supported (Manifest V3 with an event-page background — see the Firefox package note below) |
 | Safari | ⚠️ Needs Apple's `xcrun safari-web-extension-converter` to wrap it into an Xcode project (Mac + Xcode required — not something we can build in a Linux/CI sandbox); the extension code itself needs no changes since it already only uses standard WebExtension APIs. |
 
 How this is achieved:
 - `lib/compat.js` is the single seam every other module imports `ext`
   from — nothing else touches `chrome.*` directly.
-- `manifest.json`'s `background` block declares **both** `service_worker`
-  (what Chromium browsers use) and `scripts` (what Firefox's Manifest V3
-  event-page implementation requires) pointing at the same file — each
-  browser picks the key it understands and ignores the other.
-- `manifest.json` includes `browser_specific_settings.gecko` so Firefox
-  accepts and can sign the extension.
+- `manifest.json` is the **Chromium** manifest: `background.service_worker`,
+  no `background.scripts`, no `browser_specific_settings`.
+- The two keys Firefox needs instead — `background.scripts` and
+  `browser_specific_settings.gecko` — live in
+  [`tools/firefox-manifest-overlay.json`](tools/firefox-manifest-overlay.json)
+  and are merged in when the Firefox package is built. One manifest cannot
+  serve both: Chromium's store validators reject a Manifest V3 package that
+  carries `background.scripts` (Edge Add-ons refused the first upload with
+  exactly that error), while Firefox ignores `service_worker` and runs an
+  event page declared with `scripts` instead.
 - All messaging uses Promise-based `browser.runtime.sendMessage(...)`
   (never the Chrome-only callback form), since Firefox's native `browser`
   API is Promise-only.
@@ -187,7 +191,7 @@ Library — a dashboard with:
 
 ```
 kipideck/
-├── manifest.json          Manifest V3 config — dual background keys for Chromium + Firefox
+├── manifest.json          Manifest V3 config (Chromium; Firefox keys are merged in at build time)
 ├── background/
 │   └── background.js      Context menus, capture/classify/store pipeline, sync alarm
 ├── content/
@@ -217,7 +221,10 @@ kipideck/
 ├── test/                  `node --test` suite: data layer, search, canonicalization, sync, wiring
 ├── .github/workflows/ci.yml  Tests on Node 20 + 22, weekly 50k-item benchmark, website build
 ├── website/               Next.js marketing/docs site (deploy target: Vercel), incl. /privacy
-└── website/public/downloads/kipideck-extension.zip  Generated install package
+└── website/public/downloads/  Generated install packages:
+    ├── kipideck-extension.zip           Website download (Chromium, nested in kipideck/)
+    ├── kipideck-extension-chromium.zip  Edge Add-ons + Chrome Web Store upload (flat)
+    └── kipideck-extension-firefox.zip   Firefox AMO upload (flat)
 ```
 
 ## Run it locally
@@ -226,9 +233,20 @@ kipideck/
 1. Open `chrome://extensions` (or `edge://extensions`, `brave://extensions`,
    `about:debugging#/runtime/this-firefox` for Firefox).
 2. Chrome/Edge/Brave/Opera: enable **Developer mode** → **Load unpacked** →
-   select the `kipideck` folder.
-   Firefox: **Load Temporary Add-on…** → select `kipideck/manifest.json`.
+   select the `kipideck` folder (unzip `kipideck-extension.zip` first).
+   Firefox: **Load Temporary Add-on…** → select `manifest.json` from the
+   unzipped `kipideck-extension-firefox.zip` — the Firefox package, because
+   `manifest.json` in the repo is the Chromium one and would give Firefox an
+   extension with no background context at all.
 3. Pin the Kipideck icon to your toolbar. Right-click anywhere to start saving.
+
+**Building the packages** (writes all three zips + `version.json`):
+
+```bash
+npm run package          # at the repo root
+npm run verify:package   # re-checks the built zips against the store rules
+npm run check            # tests + package + verify
+```
 
 **The landing website (optional, for local preview):**
 ```bash

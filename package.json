@@ -8,7 +8,8 @@
     "test": "node --test test/*.test.js",
     "test:scale": "node --max-old-space-size=6144 test/scale.bench.js",
     "package": "npm --prefix website run package-extension",
-    "check": "npm test && npm run package"
+    "verify:package": "npm --prefix website run verify-extension",
+    "check": "npm test && npm run package && npm run verify:package"
   },
   "devDependencies": {
     "fake-indexeddb": "^6.2.2"

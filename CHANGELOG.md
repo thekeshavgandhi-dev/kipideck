@@ -6,6 +6,54 @@ All versions are the extension version in `manifest.json`.
 
 No extension code changed. This is everything needed to make the actual submissions a formality.
 
+### Fixed — the first Edge Add-ons upload was rejected (12 September 2026)
+
+Partner Center refused `kipideck-extension.zip` with three package-validation errors. All three are
+fixed, and none of them can be rebuilt now because the packager refuses to write a package that
+violates the rule:
+
+1. **`The string … has exceeded the maximum length of 132`** — the manifest `description` was 316
+   characters. Trimmed to **127**: *"Save pages, links, images and text in one click. Auto-organized,
+   searchable, stored on your own device — no account, no server."* This is now the same string as the
+   store listing's short description in `docs/STORE_SUBMISSION.md` §4; they must not drift.
+2. **`The background.scripts field cannot be used with manifest version 3`** — `manifest.json` tried
+   to serve Chromium and Firefox from one file. See "Changed — one source manifest, two packages"
+   below.
+3. **`JSON does not match all schemas from 'allOf'`** — the same `description` field; it went away
+   with #1.
+
+### Changed — one source manifest, two packages
+
+- **`manifest.json` is now the Chromium manifest.** `background.service_worker` only; no
+  `background.scripts`, no `browser_specific_settings`. Firefox-only keys moved to
+  **`tools/firefox-manifest-overlay.json`** (`background.scripts`, `service_worker: null`,
+  `browser_specific_settings.gecko`) and are merged in only when the Firefox package is built.
+  Chromium ignores `scripts` locally but its store validator rejects it; Firefox ignores
+  `service_worker` and runs an event page declared with `scripts` instead — and on Firefox < 121 the
+  event page never started at all when `service_worker` was present (bug 1860304), which is why the
+  overlay *deletes* the key rather than adding to it.
+- **`npm run package` now builds three zips** instead of one:
+  | Zip | Manifest | `manifest.json` at root | For |
+  |---|---|---|---|
+  | `kipideck-extension.zip` | Chromium | no (`kipideck/`) | website download — "Load unpacked" |
+  | `kipideck-extension-chromium.zip` | Chromium | **yes** | **Edge Add-ons + Chrome Web Store** |
+  | `kipideck-extension-firefox.zip` | Firefox | **yes** | **Firefox AMO** |
+  Store validators require `manifest.json` at the zip root; the website download keeps the nested
+  folder the install docs tell people to select.
+- **The website's download button is now browser-aware.** It served the single zip to everyone
+  before; now Firefox visitors get `kipideck-extension-firefox.zip` and everyone else the Chromium
+  package, because handing Firefox the Chromium manifest is not a warning — it is an extension with
+  no background context at all. Install copy on `/` and `/deck` updated to match.
+- **`npm run verify:package`** (`npm --prefix website run verify-extension`) re-checks the built zips
+  against the store rules. The packager only ever validated the *source*; it could not tell that the
+  zip about to be uploaded was built last week from a different branch.
+- The rules themselves live in **`website/scripts/store-rules.mjs`**, shared by the packager and the
+  verifier so they cannot drift: description ≤ 132, name ≤ 45, dotted-numeric version, MV3 background
+  shape per target, gecko id present for Firefox and absent for Chromium, no unrecognized top-level
+  keys, every manifest-referenced file present in the zip, no `.DS_Store`/`.map`/`node_modules`.
+  It caught one bug in its own first run (it flagged `browser_specific_settings` in the Firefox
+  package, which is required there).
+
 ### Added
 
 - **`tools/screenshots/`** — a screenshot harness that renders the **real** Library UI (real
@@ -14,6 +62,12 @@ No extension code changed. This is everything needed to make the actual submissi
   7 decks. Six scenes (grid, search, detail, import banner, export, settings), `H` hides the control
   bar. It fetches `library.html` rather than copying it, so the screenshots cannot drift from the UI.
   **`tools/` is not in the packaging list**, so none of it ships.
+- **`tools/firefox-manifest-overlay.json`** — the Firefox half of the manifest (see "Changed" above).
+  Also outside the packaging list, so it never ships inside either zip.
+- **Tests** for all of it in `test/wiring.test.js`: the manifest description fits 132 characters, the
+  Chromium manifest uses `service_worker` and never `scripts` or `browser_specific_settings`, the
+  Firefox overlay restores what Firefox needs, and — read out of the built zips — `manifest.json`
+  sits at the root of each store package with only that browser's keys.
 
 ### Changed
 

@@ -1,0 +1,35 @@
+{
+  "_comment": [
+    "Firefox-only manifest keys. `npm run package` (website/scripts/build-extension-zip.mjs)",
+    "merges this over manifest.json to build kipideck-extension-firefox.zip, and ships",
+    "manifest.json unmodified in the Chromium package. tools/ is not in the packaging list,",
+    "so this file never ships inside either zip.",
+    "",
+    "Why a separate overlay instead of declaring both keys in manifest.json:",
+    "  - Chromium's MV3 background is `service_worker`; Chrome tolerates `scripts` locally",
+    "    from Chrome 121, but the Edge Add-ons upload validator rejects the package with",
+    "    \"The background.scripts field cannot be used with manifest version 3\".",
+    "  - Firefox's MV3 background is a non-persistent event page declared with `scripts`;",
+    "    it does not support `service_worker` (Firefox bug 1573659), and before Firefox",
+    "    121 the event page never started at all when `service_worker` was also present",
+    "    (bug 1860304) — so the Firefox package must not contain it, or every user below",
+    "    121 gets an extension whose background is silently dead.",
+    "So each package must contain only the key its browser understands.",
+    "",
+    "Merge rule: keys here replace the same key in manifest.json, recursively. A null",
+    "value deletes that key from manifest.json."
+  ],
+  "background": {
+    "service_worker": null,
+    "scripts": [
+      "background/background.js"
+    ],
+    "type": "module"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "kipideck@example-addon.org",
+      "strict_min_version": "115.0"
+    }
+  }
+}
