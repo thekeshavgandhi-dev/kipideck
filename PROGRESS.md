@@ -191,8 +191,30 @@ with the trust story and the importer, a seven-shot screenshot list, Edge and Fi
 (AMO needs a real `browser_specific_settings.gecko.id` — the placeholder domain is still in
 `manifest.json` and **must be replaced before submitting**), and a pre-submission checklist.
 
-⬜ **Not yet done:** the actual submissions. Chrome Web Store first (longest review), then Edge, then
-AMO. Screenshots still need to be captured from a real library.
+**Cost, and the order to submit in** — the part that decides what happens next:
+
+| Store | Cost |
+|---|---|
+| Firefox AMO | **Free** |
+| Edge Add-ons | **Free** |
+| Chrome Web Store | **$5, once** (per developer account, not per extension, not annual; unavoidable) |
+
+**Order: Firefox → Edge → Chrome.** Two stores are free today, so the extension becomes installable
+in one click before any money changes hands, and the $5 is spent on a submission that has already
+been through two reviewers.
+
+**✅ Screenshot harness built** (`tools/screenshots/`) — renders the real Library UI with a seeded
+41-item library, six scenes, `H` hides the controls. Screenshots are now a ~10-minute job. `tools/`
+is not in the packaging list, so none of it ships to users.
+
+⬜ **Not yet done — and none of it is code:**
+
+1. Replace the **Firefox gecko id** (currently the placeholder `kipideck@example-addon.org`) with a
+   domain we control. Blocks AMO outright, and must never change afterwards.
+2. **Pay Chrome's $5** and register the developer account.
+3. **Capture the screenshots** using the harness.
+4. **Verify `https://kipideck.vercel.app/privacy` renders** — all three stores require a live policy
+   URL. DNS resolves to Vercel; it needs a human to open it once and confirm.
 
 ---
 

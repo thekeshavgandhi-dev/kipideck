@@ -2,6 +2,42 @@
 
 All versions are the extension version in `manifest.json`.
 
+## Unreleased — store-submission preparation
+
+No extension code changed. This is everything needed to make the actual submissions a formality.
+
+### Added
+
+- **`tools/screenshots/`** — a screenshot harness that renders the **real** Library UI (real
+  `library.html`, `library.css`, `library.js` and `lib/storage.js`) in an ordinary browser tab behind
+  a shim of the handful of `chrome.*` APIs the Library touches, seeded with a 41-item library across
+  7 decks. Six scenes (grid, search, detail, import banner, export, settings), `H` hides the control
+  bar. It fetches `library.html` rather than copying it, so the screenshots cannot drift from the UI.
+  **`tools/` is not in the packaging list**, so none of it ships.
+
+### Changed
+
+- **`docs/STORE_SUBMISSION.md`** gained the cost facts and a submission order:
+  - **Firefox AMO: free. Edge Add-ons: free. Chrome Web Store: $5 one-time** (per developer account,
+    not per extension, not annual — and unavoidable).
+  - **Submit Firefox → Edge → Chrome.** Two stores are free today, so the extension becomes
+    installable in one click before spending anything, and any reviewer objection surfaces while it
+    is still cheap to fix.
+  - Per-store sections reordered to match, with the AMO lint requirements and the 5-screenshot cap
+    folded into the Firefox section.
+  - Screenshot section now points at the harness.
+  - A "what I cannot do for you" list: paying the $5, choosing the gecko domain, and taking the
+    screenshots are not code.
+
+### Known blockers (need a human)
+
+1. **Firefox gecko id** is still `kipideck@example-addon.org` — a placeholder on a domain we do not
+   control. AMO will not accept it, and it must never change after publication.
+2. **Chrome's $5** developer registration fee.
+3. **Screenshots** still need capturing (the harness makes it ~10 minutes).
+4. **`https://kipideck.vercel.app/privacy` must be verified live** — all three stores require a
+   working policy URL. DNS resolves to Vercel, but the sandbox cannot reach it to confirm.
+
 ## 1.5.0 — 12 September 2026
 
 Phase 1 ("exist") completes. The theme of this release is **the refugee wave**: people whose

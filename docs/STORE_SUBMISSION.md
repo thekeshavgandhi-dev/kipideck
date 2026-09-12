@@ -55,6 +55,24 @@ Record which variant shipped here, and why. Do not let the two drift into an und
 
 ---
 
+## 1b · What each store costs, and the order to submit in
+
+| Store | Cost | Notes |
+|---|---|---|
+| **Firefox Add-ons (AMO)** | **Free** | No fee. Needs a developer account and the Add-on Distribution Agreement. |
+| **Edge Add-ons** | **Free** | Free, but needs a Microsoft Partner Center enrollment in the Edge program. |
+| **Chrome Web Store** | **$5, once** | One-time developer registration fee, per developer account — not per extension, and not annual. One account covers up to ~20 items. Unavoidable: there is no free route to the Chrome Web Store. |
+
+**Recommended order: Firefox → Edge → Chrome.**
+
+Two free stores are available today, so start with them. That gets the extension installable in one
+click for a real number of people before spending anything, it surfaces any review objections while
+they are still cheap to fix, and it means the $5 is spent on a submission that has already been through
+two reviewers rather than on the first attempt.
+
+Do **not** delay the whole submission waiting on the $5. Do **not** wait for Chrome before submitting
+to the other two.
+
 ## 2 · Permission justifications
 
 These must match `/privacy` §7 word for word. Source of truth:
@@ -194,7 +212,22 @@ English
 
 ## 5 · Screenshot and video shot list
 
-Screenshots: 1280×800, no browser chrome, no mock data that looks fake — import a real export first.
+Screenshots: **1280×800**, no browser chrome, no mock data that looks fake.
+
+**Use the screenshot harness** (`tools/screenshots/`) for shots 1–6. It renders the real
+`library.html`, `library.css` and `library.js` in a normal browser tab, seeded with a 42-item library,
+behind a shim of the handful of `chrome.*` APIs the Library touches:
+
+```bash
+# from the repo root
+python3 -m http.server 8000
+# open http://localhost:8000/tools/screenshots/
+```
+
+Pick a scene from the top bar, set the window to 1280×800, press **`H`** to hide the control bar, then
+screenshot. Full instructions are in `tools/screenshots/README.md`. Using it matters for two reasons:
+a mocked-up screenshot is grounds for rejection, and the harness re-seeds identically on every reload,
+so the shots stay consistent if you need to re-take one later.
 
 | # | Shot | Shows | Caption |
 |---|---|---|---|
@@ -217,36 +250,40 @@ not on features.
 
 ## 6 · Per-store differences
 
-### Chrome Web Store
+### Firefox AMO — **submit first (free)**
 
-- Upload `website/public/downloads/kipideck-extension.zip` (regenerate first — see §7).
-- Complete the data-use disclosure and the permissions-justification boxes from §2 and §3.
-- Expect a review question about `<all_urls>`. Answer with §1, not with a one-liner.
+- **Cost: free.**
+- **⚠ Blocked on one thing:** the gecko id. It is currently a placeholder in `manifest.json`:
+  ```json
+  "browser_specific_settings": { "gecko": { "id": "kipideck@example-addon.org", "strict_min_version": "115.0" } }
+  ```
+  Replace `example-addon.org` with a domain we actually control **before submitting**, and keep it
+  stable forever after — changing the gecko id post-publication breaks updates for existing users.
+- AMO runs automated lint. Two things to check in advance:
+  - No `eval`, no remote scripts, no `innerHTML` from remote data. (The extension code is clean;
+    verify with the linter rather than by eye.)
+  - `strict_min_version` must be a real Firefox version — `115.0` (the current ESR baseline) is
+    correct.
+- Firefox loads unpacked add-ons **temporarily**, which is exactly the sideloading problem this
+  document exists to end. AMO submission is the fix.
+- AMO accepts a maximum of **5 screenshots and no video** — use shots 1, 2, 4, 5, 6 from §5.
+- AMO requires source code submission if any code is minified or built. `lib/browser-polyfill.js` is
+  Mozilla's own vendored polyfill and is unmodified — say so in the submission notes.
 
-### Edge Add-ons
+### Edge Add-ons — **submit second (free)**
 
+- **Cost: free,** but it needs a Microsoft Partner Center enrollment in the Edge program.
 - The same `.zip` works unchanged; Edge accepts MV3 Chrome packages.
 - Listing copy can be identical. Shorten the full description to fit Edge's field limits if required.
 - Edge asks for a "privacy practices" summary — reuse §3 verbatim.
 
-### Firefox AMO
+### Chrome Web Store — **submit last ($5 once)**
 
-- **Needs the gecko id.** It is already present in `manifest.json`:
-  ```json
-  "browser_specific_settings": { "gecko": { "id": "kipideck@example-addon.org", "strict_min_version": "115.0" } }
-  ```
-  Replace the placeholder `example-addon.org` domain with a domain we actually control **before
-  submitting**, and keep it stable — changing the gecko id after publication breaks updates for
-  existing users.
-- AMO runs automated lint. Two things to check in advance:
-  - No `eval`, no remote scripts, no `innerHTML` from remote data. (Extension code is clean; verify
-    with the linter rather than by eye.)
-  - `browser_specific_settings.gecko.strict_min_version` must be a real Firefox version — `115.0`
-    (the current ESR baseline) is correct.
-- Firefox loads unpacked add-ons **temporarily**, which is exactly the sideloading problem this
-  document exists to end. AMO submission is the fix.
-- AMO requires source code submission if any code is minified or built. `lib/browser-polyfill.js` is
-  Mozilla's own vendored polyfill and is unmodified — say so in the submission notes.
+- **Cost: $5 one-time** developer registration fee, before you can publish anything. One account
+  covers up to ~20 items.
+- Upload `website/public/downloads/kipideck-extension.zip` (regenerate first — see §7).
+- Complete the data-use disclosure and the permissions-justification boxes from §2 and §3.
+- Expect a review question about `<all_urls>`. Answer with §1, not with a one-liner.
 
 ---
 
@@ -255,6 +292,10 @@ not on features.
 Run in order. Do not skip the version bump — a store package still labelled 1.4.0 will be
 indistinguishable from the sideload build users already have.
 
+- [ ] **Confirm the privacy policy URL is live.** All three stores require one, and every copy here
+      points at `https://kipideck.vercel.app/privacy`. Open it in a browser and check it renders —
+      a submission with a dead policy URL is rejected outright. (DNS for `kipideck.vercel.app`
+      resolves to Vercel, so this should be a formality, but *check it*.)
 - [ ] **Bump the version to 1.5.0** in `manifest.json` (and `package.json`, which mirrors it).
 - [ ] Add the 1.5.0 entry to the changelog: importers, three export formats, the refugee pages, the
       shutdown-proof pledge and the published export schema.
@@ -267,15 +308,24 @@ indistinguishable from the sideload build users already have.
 - [ ] Open every route once and click every internal link (the footer of every page links to all
       four new pages; a 404 there is the most likely regression).
 - [ ] Re-read `/privacy` §7 against §2 of this document. They must match.
-- [ ] Replace the Firefox gecko placeholder domain with one we control.
-- [ ] Capture the seven screenshots from a real library, not an empty one.
-- [ ] Submit to Chrome Web Store first — it has the longest review — then Edge, then AMO.
-- [ ] Record the submission date and the variant shipped (`<all_urls>` or optional-host) below.
+- [ ] **Replace the Firefox gecko placeholder domain with one we control**, and never change it again
+      afterwards (see §6). This is the one item that blocks AMO outright.
+- [ ] Capture the screenshots from the harness, from a real seeded library, not an empty one.
+- [ ] **Submit in cost order: Firefox (free) → Edge (free) → Chrome ($5).**
+- [ ] Record the date and the variant shipped (`<all_urls>` or optional-host) below, as you go.
 
 ### Submission log
 
-| Date | Store | Version | Variant | Status |
-|---|---|---|---|---|
-| — | Chrome Web Store | 1.5.0 | `<all_urls>` | not yet submitted |
-| — | Edge Add-ons | 1.5.0 | `<all_urls>` | not yet submitted |
-| — | Firefox AMO | 1.5.0 | `<all_urls>` | not yet submitted |
+| Date | Store | Version | Cost | Variant | Status |
+|---|---|---|---|---|---|
+| — | Firefox AMO | 1.5.0 | Free | `<all_urls>` | not yet submitted — **blocked on the gecko id** |
+| — | Edge Add-ons | 1.5.0 | Free | `<all_urls>` | not yet submitted |
+| — | Chrome Web Store | 1.5.0 | $5 once | `<all_urls>` | not yet submitted — needs the registration fee |
+
+### What I cannot do for you
+
+Three steps in this checklist are not code, so they are not done and cannot be done from a repository:
+
+1. **Pay the $5** and register the Chrome developer account.
+2. **Choose the domain** for the Firefox gecko id — it has to be a domain you control.
+3. **Take the screenshots.** The harness makes it a 10-minute job, but it needs a real browser.
