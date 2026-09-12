@@ -154,7 +154,10 @@ These must match `/privacy` §7 word for word. Source of truth:
 
 ### Title (max 45 chars)
 
-`Kipideck — Save & Organize` (28 chars)
+The **store title comes from `manifest.json`'s `name` and is read-only at Partner Center** — it is
+currently `Kipideck — Save & Organize Anything` (36 chars). Changing it means editing the manifest and
+re-uploading the package. (An earlier draft here said `Kipideck — Save & Organize`, 28 chars; the
+manifest is the value that actually ships, so use the manifest's.)
 
 ### Short description (max 132 chars)
 
@@ -303,9 +306,13 @@ does not. Local testing cannot catch this class of error, which is why the rules
 
 #### Quick fill for the Partner Center form
 
+**The full field-by-field version lives in [`docs/EDGE_FORM_FILL.md`](./EDGE_FORM_FILL.md)** — every
+box on every page of the Partner Center submission, in the order it appears, with text you can paste
+and the traps marked. The table below is the short version.
+
 | Field | Value |
 |---|---|
-| **Name** | `Kipideck — Save & Organize` |
+| **Name** | `Kipideck — Save & Organize Anything` — **read-only**, pre-filled from `manifest.json`. |
 | **Package** | `website/public/downloads/kipideck-extension-chromium.zip` (v1.5.0, ~145 KB) |
 | **Category** | Productivity |
 | **Short description** (≤132) | `Save pages, links, images and text in one click. Auto-organized, searchable, stored on your own device — no account, no server.` — **copy it out of `manifest.json`;** the listing and the manifest must not drift. |
