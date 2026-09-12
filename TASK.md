@@ -1,6 +1,6 @@
 # Kipideck — Upcoming tasks
 
-**Last updated:** 12 September 2026 · **Status:** Phase 2 — **I-12 + I-19 (v1.6.0) and ZIP handling (v1.7.0) shipped**; I-02, I-16 remain · **Companion:** [`PROGRESS.md`](./PROGRESS.md) (what's done), [`ideas.md`](./ideas.md) (the full idea list)
+**Last updated:** 12 September 2026 · **Status:** v1.8.0 shipped — related rail (I-16), Daily 5 (I-11 core), reader + TTS (I-08/I-10), keyword tagging layer (I-15 p2), rebuilt detail modal, and the security/QA pass (`docs/QA-SECURITY-REPORT-2026-09-12.md`). Open: I-02 sign-in half, I-01 store submission, I-09 highlights. · **Companion:** [`PROGRESS.md`](./PROGRESS.md) (what's done), [`ideas.md`](./ideas.md) (the full idea list)
 
 Ordered by what unblocks the most. Each task has acceptance criteria that are testable — if it can't
 be checked, it isn't finished. Effort: XS < 1 h · S ≈ half a day · M ≈ 1–2 days · L ≈ a week.
@@ -122,14 +122,18 @@ Disclosure ships; the first 60 seconds still don't.
 | ✅ Save-state workflow (Unread → Reading → Done → Archive) — shipped v1.6.0 | I-12 | S | Status is per-item, filterable in the Library, and survives sync + import (the importer already maps foreign read-state onto it) |
 | ✅ Save-all-tabs + session restore — shipped v1.6.0 | I-19 | S | "Save N tabs to deck…" from popup + shortcut; restore reopens them; sessions searchable |
 | ✅ Import polish: ZIP handling — shipped v1.7.0 | I-05 | M | Either a vendored inflate for `part_*.csv` ZIPs, or a clearer "unzip first" flow with a file-count check |
-| Related-items rail | I-16 | M | Shared tags + similarity, shown on the detail view, computed without a full scan |
+| ✅ Related-items rail — shipped v1.8.0 | I-16 | M | Shared tags + deck/domain/overlap scoring in `lib/related.js`, bounded pool (no full scan), reasons shown per chip |
+| ✅ Kipi Daily 5 — shipped v1.8.0 | I-11 | M | Day-seeded five, identical in popup/library/notification, honest shrink, opt-out |
+| ✅ Reader view + read-aloud — shipped v1.8.0 | I-08 · I-10 | M | Saved-copy render with themes/type/scroll-resume; OS-voice queue with sentence highlight |
+| ✅ Security audit + QA report — done v1.8.0 | — | M | URL sanitisation at the DB write chokepoint, bridge origin allowlist; `docs/QA-SECURITY-REPORT-2026-09-12.md` |
+| QA-report follow-ups (not code) | I-01 | XS | See §5 of the report: gecko id, Chrome $5, screenshots, live privacy URL, Edge objections |
 
 ## Later — Phases 3–6 (unchanged from `ideas.md`)
 
 | Phase | Items | Why this order |
 |---|---|---|
-| 3 · Consume | I-08 reader, I-11 resurfacing, I-10 TTS, I-09 highlights | Reader + resurfacing are the daily-habit engine; ~70% of saves are never reopened |
-| 4 · Free AI | I-13 summaries, I-14 semantic search, I-15 tagging v2 | On-device only; progressive enhancement (Chrome desktop first), never a hard dependency |
+| 3 · Consume | I-08 ✅, I-11 ✅ (core), I-10 ✅, I-09 highlights + new I-33 highlights page | Reader + resurfacing shipped v1.8.0; I-09 is the one left — build its page (I-33) in the same pass, per the Obsidian-Clipper lesson |
+| 4 · Free AI | I-13 summaries (vehicle now: I-39 Chrome built-in AI), I-14 semantic search, I-15 ✅ keyword layer, I-35 BYO-LLM Q&A, I-36 tag provenance | On-device only; progressive enhancement (Chrome desktop first), never a hard dependency |
 | 5 · Everywhere | I-17 mobile PWA, I-18 snapshots, I-20 formats, I-26 Safari | Mobile share-target is the biggest adoption blocker after stores |
 | 6 · Moat & money | I-22 E2EE, I-23 sharing, I-24 export targets, M-01/M-04 | Virality + revenue, without touching the free core |
 

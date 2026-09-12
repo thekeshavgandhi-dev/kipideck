@@ -1,12 +1,12 @@
 # Kipideck — Progress
 
-**Last updated:** 12 September 2026 · **Branch:** `arena/01a0935d-kipideck` · **Version:** 1.7.0 ·
+**Last updated:** 12 September 2026 · **Branch:** `arena/01a09430-kipideck` · **Version:** 1.8.0 ·
 **Companion:** [`TASK.md`](./TASK.md) (what's next), [`ideas.md`](./ideas.md) (the full idea list),
 [`CHANGELOG.md`](./CHANGELOG.md) (what shipped when)
 
 One-line status: **Phase 0 (foundation) is shipped and measured. Phase 1 is done — all four refugee
 pages, the documented export schema, the store-submission paperwork and the finished onboarding all
-shipped in v1.5.0. Phase 2 has started: save-state triage (I-12) and save-all-tabs sessions (I-19) shipped in v1.6.0, and ZIP import (I-05) in v1.7.0. What remains is the act of submitting to the stores (I-01), one-click sync (I-02) and the related-items rail.**
+shipped in v1.5.0. Phase 2: save-state triage (I-12) and save-all-tabs sessions (I-19) in v1.6.0, ZIP import (I-05) in v1.7.0, related-items rail (I-16) in v1.8.0 — only the “Sign in with Google” half of I-02 remains. **Phase 3 is shipped at its core: reader view (I-08), read-aloud (I-10) and Kipi Daily 5 (I-11) landed in v1.8.0**, together with a rebuilt detail modal and a security audit closed by `docs/QA-SECURITY-REPORT-2026-09-12.md`. What remains is the act of submitting to the stores (I-01).**
 
 Everything below is either verified by a test in `test/` or explicitly marked as *not yet verified*.
 
@@ -16,11 +16,11 @@ Everything below is either verified by a test in `test/` or explicitly marked as
 
 | Phase | Scope | Status | Notes |
 |---|---|---|---|
-| **0 · Foundation** | Data layer at 50k, sync v2 (delta), trust leaks, tests + CI, privacy policy | ✅ **Complete** | Shipped in v1.4. Four ideas are deliberately partial (see below). |
+| **0 · Foundation** | Data layer at 50k, sync v2 (delta), trust leaks, tests + CI, privacy policy | ✅ **Complete** | Shipped in v1.4; trust leaks got a second pass in v1.8.0 (see the QA/security report). Four ideas are deliberately partial (see below). |
 | **1 · Exist** | I-05 importers, I-06 refugee pages, I-07 shutdown-proof export, I-01 stores, I-03 onboarding | ✅ **Complete** | All four pages + the schema doc + the submission paperwork shipped in v1.5.0. Only the act of submitting to the stores remains (I-01). |
-| 2 · Sync for humans | I-02 one-click sync, I-12 triage, I-19 save-all-tabs | 🔶 **In progress** | I-12 + I-19 (v1.6.0) and ZIP handling (v1.7.0) shipped; I-02, I-16 remain |
-| 3 · Consume | I-08 reader, I-09 highlights, I-10 TTS, I-11 resurfacing | ⬜ Not started | |
-| 4 · Free AI | I-13 summaries, I-14 semantic search, I-15 tagging v2 | ⬜ Not started | Progressive enhancement only |
+| 2 · Sync for humans | I-02 one-click sync, I-12 triage, I-19 save-all-tabs | 🔶 **In progress** | I-12 + I-19 (v1.6.0), ZIP handling (v1.7.0), I-16 related rail (v1.8.0) shipped; only the sign-in half of I-02 remains |
+| 3 · Consume | I-08 reader, I-09 highlights, I-10 TTS, I-11 resurfacing | 🔶 **Core shipped** | I-08, I-10, I-11 (Daily 5 core) shipped in v1.8.0; I-09 highlights is next and I-33 (a highlights *page*) was added to ideas.md from competitor research |
+| 4 · Free AI | I-13 summaries, I-14 semantic search, I-15 tagging v2 | 🔶 **Layered** | I-15 shipped its local keyword layer (suggestKeywords) in v1.8.0; Chrome built-in-AI tier is now I-39 with the BYO-LLM Q&A path I-35 |
 | 5 · Everywhere | I-17 mobile PWA, I-18 snapshots, I-20 formats, I-26 Safari | ⬜ Not started | |
 | 6 · Moat & money | I-22 E2EE, I-23 sharing, I-24 export targets, M-01/M-04 | ⬜ Not started | I-22's delta + scale half shipped in Phase 0 |
 
@@ -40,7 +40,7 @@ and v1.3 could not hold 500 without a 2-second scan per keystroke.
 | `importJSON` **replaced** the library | Merge with dry-run preview; newest edit wins; deletions stay deleted | `test/storage.test.js` |
 | Favicons from `google.com/s2` (leaked every domain) | Local icon cache + drawn letter avatars (**I-04 ✅**) | `test/canon.test.js` |
 | Silent auto-capture, no disclosure | First-run disclosure page gating all silent capture; per-site mute; blank host fails **closed** | `test/policy.test.js` |
-| No tests, no CI | **315 tests**, GitHub Actions on Node 20 + 22 | `npm test` |
+| No tests, no CI | **472 tests**, GitHub Actions on Node 20 + 22 | `npm test` |
 | No privacy policy | `/privacy` — every permission justified | live page |
 
 **Deliberately partial** (tracked in `TASK.md`):
@@ -233,7 +233,22 @@ privacy-practice answers, so the form can be filled without re-reading the whole
 | I-05 ZIP handling (v1.7.0) | vendored fflate + `lib/unzip.js`: Pocket/Omnivore ZIPs import straight from the download, bomb-capped with friendly errors | RAR/7z/gzip (refused with an honest message) |
 | I-02 one-click sync | reliability half (delta sync, tombstones, diagnostics) shipped in Phase 0 | the “Sign in with Google” half |
 
-Covered by `test/status.test.js` (33) + `test/sessions.test.js` (23) + `test/zip.test.js` (23); suite total **414 / 414**.
+Covered by `test/status.test.js` (33) + `test/sessions.test.js` (23) + `test/zip.test.js` (23); suite total **414 / 414** at v1.7.0.
+
+---
+
+## v1.8.0 — consume phase + detail-modal redesign + security pass
+
+| Piece | What shipped | Covered by |
+|---|---|---|
+| I-16 related rail | `lib/related.js` weights (tag 4 / domain 2 / deck 1.5 / title 2) over a bounded pool; reasons per chip; 50k-safe | `test/related.test.js` (11) |
+| I-11 Daily 5 | `lib/digest.js` day-seeded picks, same five in popup/library/notification, honest shrink, 🔀 surprise-only reroll, one alarm-driven notification/day (opt-out) | `test/digest.test.js` (13, incl. IndexedDB integration) |
+| I-08 + I-10 reader & TTS | `lib/reader.js` paragraph split + hard-split safety, themes/type/width, per-item scroll resume, OS-voice queue with `.tts-now` | `test/reader.test.js` (14) |
+| I-15 keyword layer | `suggestKeywords()` appended after the regex layer at capture, ≤5, user tags win | `test/classify.test.js` (23, +6) |
+| Detail modal redesign | hero/ribbon/toolbar/sticky-Save layout; every bound id preserved; import modal kept on shared button skin | wiring invariants |
+| Security pass | URL sanitisation at the DB write chokepoint, bridge origin allowlist, `externally_connectable` removed, safe-image gate | `test/security.test.js` (14) |
+
+Full write-up: **`docs/QA-SECURITY-REPORT-2026-09-12.md`** (findings, residual risks, what a human still must check).
 
 ---
 
@@ -241,8 +256,8 @@ Covered by `test/status.test.js` (33) + `test/sessions.test.js` (23) + `test/zip
 
 | Check | Result |
 |---|---|
-| `npm test` (`node --test test/*.test.js`) | **414 / 414 passing** across 14 files |
-| `npm run package` | 36 files, **183 KB**, extension v1.7.0 |
+| `npm test` (`node --test test/*.test.js`) | **472 / 472 passing** across 21 files |
+| `npm run package` | 39 files, **~204 KB**, extension v1.8.0 (all three zips + `version.json` repacked; website advertises the same version) |
 | `npm run build` (website) | compiles; **9 static routes**, incl. all four refugee pages |
 | Internal link crawl of every built page | **no 404s** (this is how the three footer 404s were caught) |
 | Shipping JS syntax | all files parse |
@@ -250,9 +265,9 @@ Covered by `test/status.test.js` (33) + `test/sessions.test.js` (23) + `test/zip
 | GitHub Actions | Node 20 + 22, runs the suite on push/PR |
 | Runtime dependencies | **zero** (the only devDependency is `fake-indexeddb`) |
 
-Test suites: `canon` (38) · `classify` (17) · `db` (30) · `export` (25) · `import-storage` (15)
-· `import` (94) · `policy` (27) · `samples` (13) · `sessions` (23) · `status` (33) · `storage` (27)
-· `sync` (25) · `wiring` (24) · `zip` (23).
+Test suites: `canon` (38) · `classify` (23) · `db` (30) · `digest` (13) · `export` (25) · `import-storage` (15)
+· `import` (94) · `policy` (27) · `reader` (14) · `related` (11) · `samples` (13) · `security` (14) · `sessions` (23)
+· `status` (33) · `storage` (27) · `sync` (25) · `wiring` (24) · `zip` (23).
 
 > **Note:** `npm test` needs `npm install` first — the suite imports `fake-indexeddb`, and a fresh
 > clone with no `node_modules` fails 7 suites with `ERR_MODULE_NOT_FOUND`. That is expected, but it

@@ -281,3 +281,13 @@ body {
 }
 .setup-row a:hover { text-decoration: underline; }
 
+
+/* ---------- Daily 5 (ideas.md I-11) ---------- */
+.daily-card { border-left: 3px solid var(--purple, #7C5CFC); }
+.daily-slot {
+  color: var(--purple, #7C5CFC);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}

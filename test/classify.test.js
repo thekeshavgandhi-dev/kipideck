@@ -10,7 +10,66 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-const { classify, excerptFromText } = await import("../lib/classify.js");
+const { classify, excerptFromText, suggestKeywords } = await import("../lib/classify.js");
+
+// v1.8's second layer (ideas.md I-15): when a save carries page text, tags
+// come from the TEXT, not only from regexes. Deterministic, offline, capped,
+// and it must never out-shout the confident signals — keywords fill spare
+// slots, they do not take them.
+
+describe("text-derived keyword tags (I-15 layer 2)", () => {
+  const article = (n = 60) =>
+    `Sourdough starter needs flour and water. ` +
+    Array.from({ length: n }, () => "The sourdough hydration affects the crumb of every sourdough loaf.").join(" ");
+
+  test("a topic repeated early wins a slot", () => {
+    const kws = suggestKeywords(article());
+    assert.ok(kws.includes("sourdough"), `expected sourdough, got ${kws.join()}`);
+  });
+
+  test("below 600 chars there is no signal, and no invented tags", () => {
+    assert.deepEqual(suggestKeywords("sourdough sourdough sourdough."), []);
+    assert.deepEqual(suggestKeywords(""), []);
+    assert.deepEqual(suggestKeywords(null), []);
+  });
+
+  test("title words are not re-tagged (they are already findable)", () => {
+    const kws = suggestKeywords(article(), { title: "My Sourdough Notes" });
+    assert.ok(!kws.includes("sourdough"), "the title already carries it");
+    assert.ok(kws.includes("flour") || kws.includes("hydration") || kws.includes("crumb"), "other topics still qualify");
+  });
+
+  test("junk words never become tags: numerals, stopwords, and topic-clichés", () => {
+    const boring = Array.from({ length: 120 }, () => "the best top free article update 2024 download online version site content information page news").join(" ");
+    assert.deepEqual(suggestKeywords(boring), []);
+  });
+
+  test("cap respected and classify() integrates the layer without losing the rules", () => {
+    const res = classify({
+      type: "page",
+      url: "https://blog.example/bread",
+      domain: "blog.example",
+      title: "A bread guide",
+      content: article(),
+    });
+    assert.equal(res.deckId, "reading", "content regex still routes the deck");
+    assert.ok(res.tags.includes("tutorial"), "the how-to guide rule still fires");
+    assert.ok(res.tags.length <= 5 + 3, "user tags + MAX_AUTO_TAGS… keywords ride inside the cap");
+    assert.ok(new Set(res.tags).size === res.tags.length, "never duplicated");
+    assert.ok(res.tags.includes("sourdough"), "and the text-derived one is there");
+  });
+
+  test("user's own tags survive the keyword layer untouched", () => {
+    const res = classify({
+      type: "page",
+      domain: "blog.example",
+      title: "x",
+      content: article(),
+      tags: ["MY-CATEGORY"],
+    });
+    assert.ok(res.tags.includes("my-category") || res.tags.includes("MY-CATEGORY"));
+  });
+});
 
 describe("deck routing", () => {
   const cases = [
