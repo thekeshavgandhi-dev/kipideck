@@ -1,6 +1,6 @@
 # Kipideck — Upcoming tasks
 
-**Last updated:** 12 September 2026 · **Status:** Now — finish Phase 1: **all seven tasks done (v1.5.0)** · **Companion:** [`PROGRESS.md`](./PROGRESS.md) (what's done), [`ideas.md`](./ideas.md) (the full idea list)
+**Last updated:** 12 September 2026 · **Status:** Phase 2 — **I-12 + I-19 (v1.6.0) and ZIP handling (v1.7.0) shipped**; I-02, I-16 remain · **Companion:** [`PROGRESS.md`](./PROGRESS.md) (what's done), [`ideas.md`](./ideas.md) (the full idea list)
 
 Ordered by what unblocks the most. Each task has acceptance criteria that are testable — if it can't
 be checked, it isn't finished. Effort: XS < 1 h · S ≈ half a day · M ≈ 1–2 days · L ≈ a week.
@@ -119,9 +119,9 @@ Disclosure ships; the first 60 seconds still don't.
 | Task | Idea | Effort | One-line acceptance |
 |---|---|---|---|
 | First-party OAuth client, "Sign in with Google" | I-02 | L | A non-developer can turn on sync in under 2 minutes; BYO client stays as advanced fallback |
-| Save-state workflow (Unread → Reading → Done → Archive) | I-12 | S | Status is per-item, filterable in the Library, and survives sync + import (the importer already maps foreign read-state onto it) |
-| Save-all-tabs + session restore | I-19 | S | "Save N tabs to deck…" from popup + shortcut; restore reopens them; sessions searchable |
-| Import polish: ZIP handling | I-05 | M | Either a vendored inflate for `part_*.csv` ZIPs, or a clearer "unzip first" flow with a file-count check |
+| ✅ Save-state workflow (Unread → Reading → Done → Archive) — shipped v1.6.0 | I-12 | S | Status is per-item, filterable in the Library, and survives sync + import (the importer already maps foreign read-state onto it) |
+| ✅ Save-all-tabs + session restore — shipped v1.6.0 | I-19 | S | "Save N tabs to deck…" from popup + shortcut; restore reopens them; sessions searchable |
+| ✅ Import polish: ZIP handling — shipped v1.7.0 | I-05 | M | Either a vendored inflate for `part_*.csv` ZIPs, or a clearer "unzip first" flow with a file-count check |
 | Related-items rail | I-16 | M | Shared tags + similarity, shown on the detail view, computed without a full scan |
 
 ## Later — Phases 3–6 (unchanged from `ideas.md`)

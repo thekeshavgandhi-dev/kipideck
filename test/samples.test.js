@@ -47,6 +47,10 @@ describe("the sample items themselves", () => {
       new Set(SAMPLE_ITEMS.map((i) => i.deckId)).size > 1,
       "samples span more than one deck, so deck filtering is visible"
     );
+    assert.ok(
+      SAMPLE_ITEMS.some((i) => i.status && i.status !== "unread"),
+      "at least one sample is triaged past unread, so the status filter has something to show"
+    );
   });
 
   test("every sample has an absolute url and a title", () => {

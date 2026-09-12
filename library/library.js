@@ -18,6 +18,9 @@ import { faviconMap, iconFromMap } from "../lib/favicons.js";
 import * as DriveSync from "../lib/drive-sync.js";
 import * as Import from "../lib/import.js";
 import * as Exporters from "../lib/exporters.js";
+import { expandZip, isZipName } from "../lib/unzip.js";
+import { STATUSES, STATUS_META, statusOf } from "../lib/status.js";
+import { sessionTabs, sessionAsUrlList } from "../lib/sessions.js";
 
 const PAGE_SIZE = 60;
 const PINNED_FIRST_CAP = 200;
@@ -30,6 +33,7 @@ const state = {
   icons: new Map(),
   view: "all", // 'all' | 'pinned' | deckId
   activeTag: null,
+  activeStatus: null, // one of STATUSES, or null for "everything"
   query: "",
   sort: "new",
   layout: "grid",
@@ -64,6 +68,8 @@ const els = {
   bulkBar: el("bulkBar"),
   bulkCount: el("bulkCount"),
   bulkMoveSelect: el("bulkMoveSelect"),
+  bulkStatusSelect: el("bulkStatusSelect"),
+  statusChips: el("statusChips"),
   bulkDeleteBtn: el("bulkDeleteBtn"),
   bulkClearBtn: el("bulkClearBtn"),
   newDeckBtn: el("newDeckBtn"),
@@ -94,6 +100,7 @@ const els = {
   autoSaveToggle: el("autoSaveToggle"),
   toastToggle: el("toastToggle"),
   spaceKToggle: el("spaceKToggle"),
+  autoDoneToggle: el("autoDoneToggle"),
   mutedSites: el("mutedSites"),
   diagBody: el("diagBody"),
   reindexBtn: el("reindexBtn"),
@@ -120,7 +127,7 @@ const els = {
 // Small helpers
 // ---------------------------------------------------------------------------
 function typeEmoji(type) {
-  return { page: "📄", link: "🔗", image: "🖼️", video: "🎬", selection: "✍️", note: "🗒️" }[type] || "📄";
+  return { page: "📄", link: "🔗", image: "🖼️", video: "🎬", selection: "✍️", note: "🗒️", session: "📑" }[type] || "📄";
 }
 function timeAgo(ts) {
   const s = Math.floor((Date.now() - ts) / 1000);
@@ -153,6 +160,7 @@ function scope() {
     deckId: state.view !== "all" && state.view !== "pinned" ? state.view : null,
     tag: state.activeTag,
     pinned: state.view === "pinned",
+    status: state.activeStatus,
   };
 }
 
@@ -208,9 +216,31 @@ async function renderSidebar() {
     els.tagCloud.appendChild(pill);
   }
 
+  // Save-state chips (ideas.md I-12): a single-select triage filter with live
+  // counts. Unlike the deck/tag nav it is never cleared by switching views —
+  // triaging "unread" while hopping between decks is the whole workflow.
+  const byStatus = counts.byStatus || {};
+  els.statusChips.innerHTML = "";
+  for (const s of STATUSES) {
+    const meta = STATUS_META[s];
+    const pill = document.createElement("button");
+    pill.className = "tag-pill" + (state.activeStatus === s ? " active" : "");
+    pill.title = meta.hint;
+    pill.textContent = `${meta.icon} ${meta.label} ${byStatus[s] || 0}`;
+    pill.addEventListener("click", () => {
+      state.activeStatus = state.activeStatus === s ? null : s;
+      renderGrid({ reset: true });
+      renderSidebar();
+    });
+    els.statusChips.appendChild(pill);
+  }
+
   els.bulkMoveSelect.innerHTML =
     `<option value="">Move to deck…</option>` +
     state.decks.map((d) => `<option value="${d.id}">${d.icon} ${escapeHtml(d.name)}</option>`).join("");
+  els.bulkStatusSelect.innerHTML =
+    `<option value="">Set status…</option>` +
+    STATUSES.map((s) => `<option value="${s}">${STATUS_META[s].icon} ${STATUS_META[s].label}</option>`).join("");
 }
 
 async function deleteDeck(d) {
@@ -243,6 +273,7 @@ document.querySelectorAll(".nav-item[data-deck='all'], .nav-item[data-deck='pinn
 function viewSubText() {
   let sub = `${state.total.toLocaleString()} item${state.total === 1 ? "" : "s"}`;
   if (state.activeTag) sub += ` · #${state.activeTag}`;
+  if (state.activeStatus) sub += ` · ${STATUS_META[state.activeStatus]?.label || state.activeStatus}`;
   if (state.query.trim()) sub += ` · “${state.query.trim()}”`;
   if (state.degraded) sub += " · showing closest matches";
   if (state.rendered < state.total) sub += ` · ${state.rendered.toLocaleString()} shown`;
@@ -250,12 +281,13 @@ function viewSubText() {
 }
 
 async function fetchPage(offset, limit) {
-  const { deckId, tag, pinned } = scope();
+  const { deckId, tag, pinned, status } = scope();
   const q = state.query.trim();
   const opts = {
     deckId,
     tag,
     pinned,
+    status,
     limit,
     offset,
     excludeIds: state.pinnedFirstIds.size ? state.pinnedFirstIds : null,
@@ -284,12 +316,12 @@ async function renderGrid({ reset = false } = {}) {
   state.loading = true;
 
   try {
-    const { deckId, tag, pinned } = scope();
+    const { deckId, tag, pinned, status } = scope();
     let cards = [];
 
     // Pinned-first only applies to a fresh, non-pinned view.
     if (reset && !pinned) {
-      const pins = await Storage.pinnedInScope({ deckId, tag, sort: state.sort, cap: PINNED_FIRST_CAP });
+      const pins = await Storage.pinnedInScope({ deckId, tag, status, sort: state.sort, cap: PINNED_FIRST_CAP });
       if (pins.length) {
         state.pinnedFirstIds = new Set(pins.map((p) => p.id));
         cards = pins;
@@ -370,10 +402,24 @@ function cardFor(it) {
     ? ""
     : `style="background:linear-gradient(135deg, ${hexToRgba(color, 0.16)}, ${hexToRgba(color, 0.05)})"`;
 
+  // "Unread" shows no badge — it is the default state, and a badge on every card
+  // would be noise. Anything else earned its label by being triaged.
+  const itemStatus = statusOf(it);
+  const statusBadge =
+    itemStatus === "unread"
+      ? ""
+      : `<span class="status-badge status-${itemStatus}">${STATUS_META[itemStatus].icon} ${STATUS_META[itemStatus].label}</span>`;
+  const tabs = it.type === "session" ? sessionTabs(it) : [];
+  const sessionBadge =
+    it.type === "session" && tabs.length
+      ? `<span class="session-count">📑 ${tabs.length} tab${tabs.length === 1 ? "" : "s"}</span>`
+      : "";
+
   card.innerHTML = `
     <div class="item-thumb-wrap" ${thumbTint}>
       <input type="checkbox" class="item-check" title="Select" ${state.selected.has(it.id) ? "checked" : ""} />
       <button class="pin-btn ${it.pinned ? "pinned" : ""}" title="${it.pinned ? "Unpin" : "Pin"}">📍</button>
+      ${it.type === "session" ? `<button class="restore-btn" title="Restore all tabs">⤢</button>` : ""}
       ${thumbContent}
     </div>
     <div class="item-info">
@@ -381,6 +427,7 @@ function cardFor(it) {
       <div class="item-excerpt" data-excerpt="${escapeHtml(it.excerpt || "")}">${escapeHtml(it.excerpt || "")}</div>
       <div class="item-footer">
         <span class="deck-badge" style="background:${hexToRgba(color, 0.12)}; color:${color}">${deck?.icon || "📥"} ${escapeHtml(deck?.name || "Inbox")}</span>
+        ${statusBadge}${sessionBadge}
         <span class="item-time">${timeAgo(it.createdAt)}</span>
       </div>
     </div>
@@ -396,8 +443,45 @@ function cardFor(it) {
     await Storage.updateItem(it.id, { pinned: !it.pinned });
     await reload();
   });
+  const restoreBtn = card.querySelector(".restore-btn");
+  if (restoreBtn) {
+    restoreBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await restoreSession(it);
+    });
+  }
   card.addEventListener("click", () => openDetail(it.id));
   return card;
+}
+
+// Sessions restore the way a person reopens a desk: the first tab takes
+// focus, the rest load quietly in the background. Above RESTORE_CONFIRM_AT
+// tabs we ask first, because twenty windows appearing at once is how
+// laptops learn to fly.
+const RESTORE_CONFIRM_AT = 20;
+
+async function restoreSession(it) {
+  const tabs = sessionTabs(it);
+  if (!tabs.length) return;
+  if (tabs.length > RESTORE_CONFIRM_AT) {
+    const ok = confirm(
+      `Restore ${tabs.length} tabs from “${it.title || "session"}”? The first opens in front, the rest in the background.`
+    );
+    if (!ok) return;
+  }
+  let failed = 0;
+  for (let i = 0; i < tabs.length; i++) {
+    try {
+      await ext.tabs.create({ url: tabs[i].url, active: i === 0 });
+    } catch {
+      failed++;
+    }
+  }
+  toast(
+    failed === 0
+      ? `Restored ${tabs.length} tab${tabs.length === 1 ? "" : "s"} 📑`
+      : `Restored ${tabs.length - failed} of ${tabs.length} tabs (${failed} blocked by the browser)`
+  );
 }
 
 // Infinite scroll: fetch the next page when the sentinel comes into view.
@@ -438,6 +522,14 @@ els.bulkMoveSelect.addEventListener("change", async (e) => {
   const deckId = e.target.value;
   if (!deckId) return;
   for (const id of state.selected) await Storage.updateItem(id, { deckId });
+  state.selected.clear();
+  renderBulkBar();
+  await reload();
+});
+els.bulkStatusSelect.addEventListener("change", async (e) => {
+  const status = e.target.value;
+  if (!status) return;
+  for (const id of state.selected) await Storage.updateItem(id, { status });
   state.selected.clear();
   renderBulkBar();
   await reload();
@@ -483,6 +575,11 @@ async function openDetail(id) {
   const hero = it.type === "image" && it.image ? `<img class="detail-hero" src="${escapeHtml(it.image)}" alt="" />` : "";
   const thumb = it.image ? `<img src="${escapeHtml(it.image)}" alt="" />` : `<img src="${iconFromMap(state.icons, it.domain, it.title)}" alt="" />`;
   const thumbTint = it.image ? "" : `style="background:linear-gradient(135deg, ${hexToRgba(color, 0.16)}, ${hexToRgba(color, 0.05)})"`;
+  // Sessions show their tab list instead of a source link; every item shows
+  // its save-state pills.
+  const isSession = it.type === "session";
+  const detailTabs = isSession ? sessionTabs(it) : [];
+  const detailStatus = statusOf(it);
 
   els.modalBody.innerHTML = `
     ${hero}
@@ -502,23 +599,50 @@ async function openDetail(id) {
       ${state.decks.map((d) => `<option value="${d.id}" ${d.id === it.deckId ? "selected" : ""}>${d.icon} ${escapeHtml(d.name)}</option>`).join("")}
     </select>
 
+    <div class="detail-section-title">Status</div>
+    <div class="status-pills" id="dStatusRow">
+      ${STATUSES.map(
+        (s) =>
+          `<button class="status-pill${detailStatus === s ? " active" : ""}" data-status="${s}" title="${STATUS_META[s].hint}">${STATUS_META[s].icon} ${STATUS_META[s].label}</button>`
+      ).join("")}
+    </div>
+
     <div class="detail-section-title">Tags</div>
     <div class="tag-editor" id="dTags">
       ${(it.tags || []).map((t) => `<span class="tag-chip" data-tag="${escapeHtml(t)}">#${escapeHtml(t)} <button>✕</button></span>`).join("")}
       <input id="dTagInput" placeholder="add tag + Enter" />
     </div>
 
+    ${
+      isSession && detailTabs.length
+        ? `<div class="detail-section-title">Tabs in this window (${detailTabs.length})</div>
+    <div class="session-tabs" id="dSessionTabs">
+      ${detailTabs
+        .map(
+          (t, i) =>
+            `<button class="session-tab" data-idx="${i}" title="${escapeHtml(t.url)}"><span class="session-tab-title">${escapeHtml(t.title)}</span><span class="session-tab-url">${escapeHtml(t.url)}</span></button>`
+        )
+        .join("")}
+    </div>`
+        : ""
+    }
+
     ${text ? `<div class="detail-section-title">Saved content</div><div class="detail-body-text">${escapeHtml(text)}</div>` : ""}
     ${it.excerpt && !text ? `<div class="detail-section-title">Excerpt</div><div class="detail-body-text">${escapeHtml(it.excerpt)}</div>` : ""}
 
-    <div class="detail-section-title">Reference / source</div>
-    <div class="detail-body-text" style="max-height:60px">${escapeHtml(it.reference || it.sourceUrl || it.url || "—")}</div>
+    ${
+      isSession
+        ? ""
+        : `<div class="detail-section-title">Reference / source</div>
+    <div class="detail-body-text" style="max-height:60px">${escapeHtml(it.reference || it.sourceUrl || it.url || "—")}</div>`
+    }
 
     <div class="detail-section-title">Your note</div>
     <textarea id="dNote" rows="2" class="detail-note" placeholder="Add a personal note…">${escapeHtml(it.note || "")}</textarea>
 
     <div class="detail-actions">
       ${it.url ? `<button id="dOpen">🔗 Open source</button>` : ""}
+      ${isSession && detailTabs.length ? `<button id="dRestore">⤢ Restore all ${detailTabs.length}</button><button id="dCopyTabs">📋 Copy links</button>` : ""}
       <button id="dPin">${it.pinned ? "📍 Unpin" : "📌 Pin"}</button>
       <button id="dCopy">📋 Copy reference</button>
       <button id="dDelete" class="danger-btn">Delete</button>
@@ -550,7 +674,57 @@ async function openDetail(id) {
     }
   });
 
-  if (it.url) document.getElementById("dOpen").addEventListener("click", () => window.open(it.url, "_blank"));
+  // Status pills apply immediately — triage is one click per item, not one click
+  // plus a save button. The grid behind reloads; the modal stays open.
+  const statusRow = document.getElementById("dStatusRow");
+  if (statusRow) {
+    statusRow.querySelectorAll(".status-pill").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const next = btn.dataset.status;
+        await Storage.updateItem(it.id, { status: next });
+        statusRow
+          .querySelectorAll(".status-pill")
+          .forEach((b) => b.classList.toggle("active", b.dataset.status === next));
+        await reload();
+      });
+    });
+  }
+
+  // One tab at a time, the whole window at once, or all links to the clipboard.
+  const sessionWrap = document.getElementById("dSessionTabs");
+  if (sessionWrap) {
+    sessionWrap.querySelectorAll(".session-tab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const t = detailTabs[Number(btn.dataset.idx)];
+        if (t?.url) window.open(t.url, "_blank");
+      });
+    });
+  }
+  const dRestoreBtn = document.getElementById("dRestore");
+  if (dRestoreBtn) dRestoreBtn.addEventListener("click", () => restoreSession(it));
+  const dCopyTabsBtn = document.getElementById("dCopyTabs");
+  if (dCopyTabsBtn) {
+    dCopyTabsBtn.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(sessionAsUrlList(it));
+      dCopyTabsBtn.textContent = "✅ Copied";
+      setTimeout(() => (dCopyTabsBtn.textContent = "📋 Copy links"), 1200);
+    });
+  }
+
+  if (it.url) {
+    document.getElementById("dOpen").addEventListener("click", async () => {
+      window.open(it.url, "_blank");
+      // Optional triage automation (Settings): opening the source finishes the
+      // item — but only out of Unread/Reading, never out of Archived.
+      if (state.settings.autoDoneOnOpen === true) {
+        const cur = statusOf(it);
+        if (cur === "unread" || cur === "reading") {
+          await Storage.updateItem(it.id, { status: "done" });
+          await reload();
+        }
+      }
+    });
+  }
   document.getElementById("dPin").addEventListener("click", async () => {
     await Storage.updateItem(it.id, { pinned: !it.pinned });
     closeModal();
@@ -700,7 +874,8 @@ async function runExport(format, withContent) {
  * Import — the refugee path (ideas.md I-05).
  *
  * Someone arrives holding a Pocket ZIP full of part_*.csv files, an Omnivore
- * folder of metadata_*.json, a browser bookmarks.html, or a plain list of URLs
+ * export ZIP (both opened right here — no unzipping by hand), a folder of
+ * metadata_*.json, a browser bookmarks.html, or a plain list of URLs
  * they kept in a note. So the dialog takes several files at once, works out what
  * each one is, shows exactly what will land in the library BEFORE writing
  * anything, and can be run twice without duplicating a single item.
@@ -746,11 +921,43 @@ async function openImportDialog(files) {
   confirmBtn.textContent = "Import";
   els.importModalCancel.onclick = closeImportDialog;
 
+  // Archives expand into their inner files BEFORE the read loop, so everything
+  // downstream — detection, preview, dry-run — sees plain files and never
+  // learns that some of them arrived inside a ZIP.
+  const units = [];
   for (const file of files) {
-    const entry = { name: file.name, size: file.size || 0, text: "", parsed: null, error: "" };
+    if (!isZipName(file.name)) {
+      units.push({ file });
+      continue;
+    }
     try {
-      entry.text = await file.text();
-      entry.parsed = Import.parseExport({ name: file.name, text: entry.text });
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const zip = expandZip(bytes, { outerName: file.name });
+      for (const inner of zip.files) {
+        units.push({ name: inner.name, size: inner.bytes, text: inner.text, archive: file.name });
+      }
+    } catch (err) {
+      units.push({ name: file.name, size: file.size || 0, error: (err && err.message) || String(err) });
+    }
+  }
+
+  for (const unit of units) {
+    if (unit.error) {
+      importSession.entries.push({ name: unit.name, size: unit.size, text: "", parsed: null, error: unit.error });
+      renderImportDialog();
+      continue;
+    }
+    const entry = {
+      name: unit.name || unit.file.name,
+      size: unit.size ?? unit.file.size ?? 0,
+      text: "",
+      parsed: null,
+      error: "",
+      archive: unit.archive || "",
+    };
+    try {
+      entry.text = unit.text ?? (await unit.file.text());
+      entry.parsed = Import.parseExport({ name: entry.name, text: entry.text });
     } catch (err) {
       entry.error = (err && err.message) || String(err);
     }
@@ -840,13 +1047,13 @@ function renderImportDialog() {
     .map((entry) => {
       if (entry.error) {
         return `<div class="import-file bad">
-          <span class="import-file-name">${escapeHtml(entry.name)}</span>
+          <span class="import-file-name">${entry.archive ? escapeHtml(entry.archive) + " › " : ""}${escapeHtml(entry.name)}</span>
           <span class="import-file-note">${escapeHtml(entry.error)}</span>
         </div>`;
       }
       const count = (entry.parsed?.items || []).length;
       return `<div class="import-file">
-        <span class="import-file-name">${escapeHtml(entry.name)}</span>
+        <span class="import-file-name">${entry.archive ? escapeHtml(entry.archive) + " › " : ""}${escapeHtml(entry.name)}</span>
         <span class="import-file-note">${escapeHtml(entry.parsed?.label || "")} · ${count.toLocaleString()} found</span>
       </div>`;
     })
@@ -1025,6 +1232,7 @@ async function openSettings(section) {
   els.toastToggle.checked = s.showToast !== false;
   els.autoSaveToggle.checked = s.autoSaveSelection ?? s.showFloatingButton ?? true;
   els.spaceKToggle.checked = s.spaceKQuickSave !== false;
+  els.autoDoneToggle.checked = s.autoDoneOnOpen === true;
   renderMutedSites(s.mutedHosts || []);
   await refreshDiagnostics();
   await refreshSyncUI();
@@ -1102,13 +1310,14 @@ async function persistToggles() {
     autoSaveSelection: els.autoSaveToggle.checked,
     showFloatingButton: els.autoSaveToggle.checked, // legacy key, kept in sync
     spaceKQuickSave: els.spaceKToggle.checked,
+    autoDoneOnOpen: els.autoDoneToggle.checked,
   };
   await Storage.updateSettings(patch);
   // The Library writes settings straight to storage, so tell the background to
   // nudge open tabs — otherwise a toggle appears to do nothing until a reload.
   ext.runtime.sendMessage({ type: "KIPI_SETTINGS_CHANGED", settings: patch }).catch(() => {});
 }
-[els.autoOrganizeToggle, els.autoSaveToggle, els.toastToggle, els.spaceKToggle].forEach((t) => {
+[els.autoOrganizeToggle, els.autoSaveToggle, els.toastToggle, els.spaceKToggle, els.autoDoneToggle].forEach((t) => {
   if (t) t.addEventListener("change", persistToggles);
 });
 

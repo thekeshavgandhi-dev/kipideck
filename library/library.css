@@ -992,3 +992,103 @@ code {
 }
 .sync-setup-msg.ok { background: #eafaf1; border-color: #cdeeda; color: #1f7a4d; }
 .sync-setup-msg.error { background: #fdeef2; border-color: #f7d3dd; color: #b02a4b; }
+
+/* ============ v1.6: save-states (I-12) + saved windows (I-19) ============ */
+.status-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.status-reading { background: #e8f1fe; color: #1a56c4; }
+.status-done { background: #e7f9f0; color: #148a52; }
+.status-archived { background: #f1f0f6; color: #6d6a80; }
+
+.status-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.status-pill {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text-soft);
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.status-pill:hover { border-color: #cfc9e8; }
+.status-pill.active {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: #fff;
+}
+
+.session-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--purple-dark);
+  white-space: nowrap;
+}
+.restore-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 2;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 8px rgba(20, 10, 60, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.item-card:hover .restore-btn { opacity: 1; }
+.restore-btn:hover { transform: scale(1.08); }
+
+.session-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.session-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 11px;
+  font-family: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+.session-tab:hover { border-color: #cfc9e8; background: #faf9fe; }
+.session-tab-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-tab-url {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

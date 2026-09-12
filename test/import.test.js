@@ -272,9 +272,8 @@ describe("format detection", () => {
     assert.equal(detectFormat({ name: "export.html", text: trimmed }).id, "pocket-html");
   });
 
-  test("a ZIP is refused with an instruction, not a parse error", () => {
-    assert.throws(() => parseExport({ name: "pocket-export.zip", text: "PK\u0003\u0004binary" }), /unzip/i);
-  });
+  // ZIP handling moved to test/zip.test.js: the dialog expands archives, and
+  // only RAR/7z/gzip still refuse here.
 
   test("an empty file says so", () => {
     assert.throws(() => parseExport({ name: "empty.csv", text: "   \n " }), /empty/i);

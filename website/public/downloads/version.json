@@ -1,10 +1,10 @@
 {
-  "version": "1.5.0",
+  "version": "1.7.0",
   "file": "/downloads/kipideck-extension.zip",
   "filename": "kipideck-extension.zip",
-  "size": 149561,
-  "sizeKB": 146,
-  "builtAt": "2026-09-12T03:43:22.040Z",
+  "size": 187555,
+  "sizeKB": 183,
+  "builtAt": "2026-09-12T05:45:21.850Z",
   "method": "zip-cli",
   "packages": [
     {
@@ -12,8 +12,8 @@
       "file": "/downloads/kipideck-extension.zip",
       "filename": "kipideck-extension.zip",
       "target": "chromium",
-      "size": 149561,
-      "sizeKB": 146,
+      "size": 187555,
+      "sizeKB": 183,
       "description": "website download (Chromium, nested in kipideck/)"
     },
     {
@@ -21,8 +21,8 @@
       "file": "/downloads/kipideck-extension-chromium.zip",
       "filename": "kipideck-extension-chromium.zip",
       "target": "chromium",
-      "size": 148765,
-      "sizeKB": 145,
+      "size": 186669,
+      "sizeKB": 182,
       "description": "Edge Add-ons + Chrome Web Store upload (Chromium, flat)"
     },
     {
@@ -30,8 +30,8 @@
       "file": "/downloads/kipideck-extension-firefox.zip",
       "filename": "kipideck-extension-firefox.zip",
       "target": "firefox",
-      "size": 148819,
-      "sizeKB": 145,
+      "size": 186725,
+      "sizeKB": 182,
       "description": "Firefox AMO upload / temporary add-on (Firefox, flat)"
     }
   ]

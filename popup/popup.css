@@ -115,6 +115,50 @@ body {
 }
 .hint strong { color: var(--purple-dark); font-weight: 700; }
 
+/* ---------- save all tabs ---------- */
+.tabs-row { display: flex; gap: 8px; margin-top: 8px; }
+.secondary-btn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 12px;
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.secondary-btn:hover:not(:disabled) { border-color: #cfc9e8; background: var(--bg-soft); }
+.secondary-btn:disabled { opacity: 0.55; cursor: default; }
+.secondary-btn span:last-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.secondary-ico { font-size: 14px; line-height: 1; flex: none; }
+.deck-select {
+  flex: none;
+  max-width: 128px;
+  padding: 9px 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+.deck-select:focus { border-color: var(--purple); }
+
 /* ---------- note + search ---------- */
 .note-row { padding: 10px 16px 0; }
 .note-row input,
@@ -236,3 +280,4 @@ body {
   text-decoration: none;
 }
 .setup-row a:hover { text-decoration: underline; }
+

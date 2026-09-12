@@ -24,6 +24,7 @@ import { extractPageText } from "../lib/extract.js";
 import { hostOf } from "../lib/canon.js";
 import { capturePolicyFor } from "../lib/policy.js";
 import { cacheFaviconFor } from "../lib/favicons.js";
+import { buildSessionItem } from "../lib/sessions.js";
 import * as DriveSync from "../lib/drive-sync.js";
 
 const MENU = {
@@ -404,9 +405,47 @@ ext.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
+/**
+ * Save-all-tabs (ideas.md I-19): the current window becomes ONE session item —
+ * searchable, synced and restorable — rather than N separate cards. Always an
+ * explicit user action (popup button or shortcut); windows are never captured
+ * on a timer, which would be silent capture of browsing history.
+ */
+async function saveWindowAsSession({ deckId = "inbox", name = "" } = {}) {
+  const decks = await Storage.getDecks();
+  const targetDeck = decks.some((d) => d.id === deckId) ? deckId : "inbox";
+  const deck = decks.find((d) => d.id === targetDeck);
+
+  const winTabs = await ext.tabs.query({ currentWindow: true });
+  const { item, content, saved, skipped, duplicates, capped } = buildSessionItem(
+    (winTabs || []).map((t) => ({ url: t?.url, title: t?.title })),
+    { name, deckId: targetDeck }
+  );
+  if (!item) return { saved: null, savedCount: 0, skipped, duplicates, capped };
+
+  const record = await Storage.saveItem({ ...item, content });
+
+  const bits = [`${saved} tab${saved === 1 ? "" : "s"}`];
+  if (skipped) bits.push(`${skipped} skipped`);
+  if (duplicates) bits.push(`${duplicates} duplicate${duplicates === 1 ? "" : "s"} merged`);
+  if (capped) bits.push("capped at 100");
+  await notify(
+    "Window saved to Kipideck ✅",
+    `${record.title}\n→ ${deck ? deck.icon + " " + deck.name : "Inbox"} (${bits.join(", ")})`
+  );
+
+  ext.runtime.sendMessage({ type: "KIPI_ITEM_SAVED", item: record }).catch(() => {});
+  maybeSyncAfterSave();
+  return { saved: record, savedCount: saved, skipped, duplicates, capped };
+}
+
 ext.commands.onCommand.addListener(async (command) => {
   if (command === "open-library") {
     openLibraryAt(null);
+    return;
+  }
+  if (command === "save-all-tabs") {
+    await saveWindowAsSession({});
     return;
   }
   if (command === "quick-save") {
@@ -457,6 +496,17 @@ ext.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       ext.runtime.sendMessage({ type: "KIPI_ITEM_SAVED", item: saved }).catch(() => {});
       maybeSyncAfterSave();
       sendResponse({ ok: true, item: saved });
+    } else if (msg?.type === "KIPI_SAVE_TABS") {
+      try {
+        const res = await saveWindowAsSession({ deckId: msg.deckId, name: msg.name });
+        if (!res.saved) {
+          sendResponse({ ok: false, error: "No savable tabs in this window — browser pages and duplicates are skipped." });
+        } else {
+          sendResponse({ ok: true, item: res.saved, savedCount: res.savedCount, skipped: res.skipped });
+        }
+      } catch (e) {
+        sendResponse({ ok: false, error: e?.message || String(e) });
+      }
     } else if (msg?.type === "KIPI_GET_COUNT") {
       const counts = await Storage.getCounts();
       sendResponse({ count: counts.total });

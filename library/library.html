@@ -22,6 +22,10 @@
         <span class="nav-ico">📌</span><span class="nav-label">Pinned</span><span class="nav-count" id="countPinned"></span>
       </div>
     </nav>
+    <div class="nav-section" id="statusSection">
+      <div class="nav-section-title">Status</div>
+      <div id="statusChips" class="chip-row"></div>
+    </div>
 
     <div class="deck-head">
       <span class="nav-section-title">Decks</span>
@@ -47,7 +51,7 @@
           type="file"
           id="importFile"
           multiple
-          accept=".json,.csv,.tsv,.html,.htm,.txt,.md,application/json,text/csv,text/html,text/plain"
+          accept=".zip,.json,.csv,.tsv,.html,.htm,.txt,.md,application/zip,application/json,text/csv,text/html,text/plain"
           hidden
         />
       </div>
@@ -108,6 +112,7 @@
       <span id="bulkCount"></span>
       <span class="bulk-spacer"></span>
       <select id="bulkMoveSelect" title="Move selected to a deck"><option value="">Move to deck…</option></select>
+      <select id="bulkStatusSelect" title="Set status for selected"><option value="">Set status…</option></select>
       <button id="bulkDeleteBtn" class="danger-btn">Delete</button>
       <button id="bulkClearBtn" class="ghost-link" title="Clear selection">✕</button>
     </div>
@@ -183,6 +188,13 @@
         <small class="muted">Skipped on sites where those keys do something (YouTube, Gmail, video players).</small>
       </span>
     </label>
+    <label class="switch-row">
+      <span class="switch"><input type="checkbox" id="autoDoneToggle" /><i></i></span>
+      <span class="switch-label">
+        Opening an item marks it done
+        <small class="muted">Only unread or reading items move, and only when you open them from a detail card. Never archived ones.</small>
+      </span>
+    </label>
 
     <div class="section-title">Quiet sites</div>
     <div id="mutedSites" class="muted-sites"></div>
@@ -204,6 +216,10 @@
       <div class="shortcut">
         <span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></span>
         <span>open the library</span>
+      </div>
+      <div class="shortcut">
+        <span class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>S</kbd></span>
+        <span>save all open tabs as one session (Mac: <kbd>⌘</kbd><kbd>Shift</kbd><kbd>S</kbd>)</span>
       </div>
     </div>
 

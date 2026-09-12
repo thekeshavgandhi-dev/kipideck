@@ -1,12 +1,12 @@
 # Kipideck — Progress
 
-**Last updated:** 12 September 2026 · **Branch:** `arena/01a0935d-kipideck` · **Version:** 1.5.0 ·
+**Last updated:** 12 September 2026 · **Branch:** `arena/01a0935d-kipideck` · **Version:** 1.7.0 ·
 **Companion:** [`TASK.md`](./TASK.md) (what's next), [`ideas.md`](./ideas.md) (the full idea list),
 [`CHANGELOG.md`](./CHANGELOG.md) (what shipped when)
 
 One-line status: **Phase 0 (foundation) is shipped and measured. Phase 1 is done — all four refugee
 pages, the documented export schema, the store-submission paperwork and the finished onboarding all
-shipped in v1.5.0. What remains is the act of submitting to the stores (I-01) and Phase 2.**
+shipped in v1.5.0. Phase 2 has started: save-state triage (I-12) and save-all-tabs sessions (I-19) shipped in v1.6.0, and ZIP import (I-05) in v1.7.0. What remains is the act of submitting to the stores (I-01), one-click sync (I-02) and the related-items rail.**
 
 Everything below is either verified by a test in `test/` or explicitly marked as *not yet verified*.
 
@@ -18,7 +18,7 @@ Everything below is either verified by a test in `test/` or explicitly marked as
 |---|---|---|---|
 | **0 · Foundation** | Data layer at 50k, sync v2 (delta), trust leaks, tests + CI, privacy policy | ✅ **Complete** | Shipped in v1.4. Four ideas are deliberately partial (see below). |
 | **1 · Exist** | I-05 importers, I-06 refugee pages, I-07 shutdown-proof export, I-01 stores, I-03 onboarding | ✅ **Complete** | All four pages + the schema doc + the submission paperwork shipped in v1.5.0. Only the act of submitting to the stores remains (I-01). |
-| 2 · Sync for humans | I-02 one-click sync, I-12 triage, I-19 save-all-tabs | ⬜ Not started | I-02's reliability half shipped in Phase 0 |
+| 2 · Sync for humans | I-02 one-click sync, I-12 triage, I-19 save-all-tabs | 🔶 **In progress** | I-12 + I-19 (v1.6.0) and ZIP handling (v1.7.0) shipped; I-02, I-16 remain |
 | 3 · Consume | I-08 reader, I-09 highlights, I-10 TTS, I-11 resurfacing | ⬜ Not started | |
 | 4 · Free AI | I-13 summaries, I-14 semantic search, I-15 tagging v2 | ⬜ Not started | Progressive enhancement only |
 | 5 · Everywhere | I-17 mobile PWA, I-18 snapshots, I-20 formats, I-26 Safari | ⬜ Not started | |
@@ -224,12 +224,25 @@ privacy-practice answers, so the form can be filled without re-reading the whole
 
 ---
 
+## Phase 2 — sync for humans 🔶 (I-12 + I-19 in v1.6.0, ZIP in v1.7.0)
+
+| Idea | Shipped | Still open |
+|---|---|---|
+| I-12 save-state workflow | per-item status + schema v2 (backfill to unread), Library chips/counts/filters, `status:` search, bulk + per-item triage, mark-done-on-open, import mapping, JSON round-trip | keyboard/swipe triage mode, time-based auto-archive rules |
+| I-19 save-all-tabs + sessions | popup + `Ctrl/⌘+Shift+S` capture, one-click restore, tab search, bookmark/Markdown/JSON round-trips | named tab-groups-as-decks, automatic session back-ups |
+| I-05 ZIP handling (v1.7.0) | vendored fflate + `lib/unzip.js`: Pocket/Omnivore ZIPs import straight from the download, bomb-capped with friendly errors | RAR/7z/gzip (refused with an honest message) |
+| I-02 one-click sync | reliability half (delta sync, tombstones, diagnostics) shipped in Phase 0 | the “Sign in with Google” half |
+
+Covered by `test/status.test.js` (33) + `test/sessions.test.js` (23) + `test/zip.test.js` (23); suite total **414 / 414**.
+
+---
+
 ## Test & build status
 
 | Check | Result |
 |---|---|
-| `npm test` (`node --test test/*.test.js`) | **330 / 330 passing**, 11 suites |
-| `npm run package` | 32 files, **145 KB**, extension v1.5.0 |
+| `npm test` (`node --test test/*.test.js`) | **414 / 414 passing** across 14 files |
+| `npm run package` | 36 files, **183 KB**, extension v1.7.0 |
 | `npm run build` (website) | compiles; **9 static routes**, incl. all four refugee pages |
 | Internal link crawl of every built page | **no 404s** (this is how the three footer 404s were caught) |
 | Shipping JS syntax | all files parse |
@@ -237,8 +250,9 @@ privacy-practice answers, so the form can be filled without re-reading the whole
 | GitHub Actions | Node 20 + 22, runs the suite on push/PR |
 | Runtime dependencies | **zero** (the only devDependency is `fake-indexeddb`) |
 
-Test suites: `db` (29) · `storage` (28) · `canon` (37) · `sync` (25) · `wiring` (18) · `classify` (20)
-· `policy` (**27**) · `import` (95) · `import-storage` (15) · `export` (25) · **`samples` (13)**.
+Test suites: `canon` (38) · `classify` (17) · `db` (30) · `export` (25) · `import-storage` (15)
+· `import` (94) · `policy` (27) · `samples` (13) · `sessions` (23) · `status` (33) · `storage` (27)
+· `sync` (25) · `wiring` (24) · `zip` (23).
 
 > **Note:** `npm test` needs `npm install` first — the suite imports `fake-indexeddb`, and a fresh
 > clone with no `node_modules` fails 7 suites with `ERR_MODULE_NOT_FOUND`. That is expected, but it
@@ -260,6 +274,10 @@ lib/
   exporters.js   bookmark HTML + Markdown generators (pure)
   canon.js       URL canonicalisation, site labels, fingerprints
   search.js      ranked search over the chunked index
+  status.js      save-state vocabulary + foreign read-state mapping (pure)
+  sessions.js    tab-session capture/restore helpers (pure)
+  unzip.js       in-browser ZIP expansion for imports (pure)
+  vendor/fflate.js  vendored DEFLATE/ZIP codec (MIT, single file)
   text.js        tokenisation, stemming, stopwords
   classify.js    deck/type classification + tag hygiene
   favicons.js    local icon cache + letter avatars
@@ -267,7 +285,7 @@ lib/
   policy.js      capture policy contract (what may be silent, where)
 library/         the Library UI: grid, search, detail, import + export dialogs
 onboarding/      first-run disclosure/consent
-test/            315 tests + a 50k-item benchmark
+test/            414 tests + a 50k-item benchmark
 website/         Next.js marketing site: /, /deck, /privacy, /sync-setup, /pocket-alternative
 ```
 
@@ -275,17 +293,14 @@ website/         Next.js marketing site: /, /deck, /privacy, /sync-setup, /pocke
 
 ## Known gaps and honest limitations
 
-1. **ZIP files cannot be opened.** Users must unzip Pocket/Omnivore exports first. Fixing it means
-   either a dependency or a hand-written inflate; both were rejected for now. The dialog explains it,
-   and the refugee pages say so plainly rather than letting people discover it mid-import.
-2. **Pocket exports contain no article text** — nobody can recover what was never exported. Kipideck
+1. **Pocket exports contain no article text** — nobody can recover what was never exported. Kipideck
    stores text for items saved from now on. Omnivore's export *does* contain it, which is why that
    page makes a point of selecting the `contents/` folder.
-3. **No first-party OAuth client**, so Drive sync still needs a BYO client ID (I-02's other half).
-4. **Not in any store.** Sideloading only, which is the single biggest conversion killer (I-01). The
+2. **No first-party OAuth client**, so Drive sync still needs a BYO client ID (I-02's other half).
+3. **Not in any store.** Sideloading only, which is the single biggest conversion killer (I-01). The
    paperwork is now written; the submissions are not sent.
-5. **The Firefox gecko id is still a placeholder** (`kipideck@example-addon.org`) on a domain we do
+4. **The Firefox gecko id is still a placeholder** (`kipideck@example-addon.org`) on a domain we do
    not control. It must be replaced before the AMO submission, and never changed afterwards — changing
    it post-publication breaks updates for existing users.
-6. **No reader view.** Saved text is stored and searchable but never rendered cleanly (I-08).
-7. **No directory submissions yet** — AlternativeTo, G2 and Capterra are untouched (I-28).
+5. **No reader view.** Saved text is stored and searchable but never rendered cleanly (I-08).
+6. **No directory submissions yet** — AlternativeTo, G2 and Capterra are untouched (I-28).

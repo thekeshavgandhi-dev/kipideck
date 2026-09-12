@@ -1,6 +1,6 @@
 # Store submission
 
-**Applies to:** v1.5.0 · **Last updated:** 12 September 2026 · **Targets:** Chrome Web Store, Edge Add-ons, Firefox AMO
+**Applies to:** v1.7.0 · **Last updated:** 12 September 2026 · **Targets:** Chrome Web Store, Edge Add-ons, Firefox AMO
 
 This is the paperwork that ends sideloading. Everything here is written to be pasted into a store
 form, and the permission justifications are kept in sync with [`/privacy`](https://kipideck.vercel.app/privacy)
@@ -394,7 +394,7 @@ indistinguishable from the sideload build users already have.
       points at `https://kipideck.vercel.app/privacy`. Open it in a browser and check it renders —
       a submission with a dead policy URL is rejected outright. (DNS for `kipideck.vercel.app`
       resolves to Vercel, so this should be a formality, but *check it*.)
-- [ ] **Bump the version to 1.5.0** in `manifest.json` (and `package.json`, which mirrors it).
+- [ ] **Bump the version to 1.7.0** in `manifest.json` (and `package.json`, which mirrors it).
 - [ ] Add the 1.5.0 entry to the changelog: importers, three export formats, the refugee pages, the
       shutdown-proof pledge and the published export schema.
 - [ ] `npm ci` at the repo root.
