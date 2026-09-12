@@ -8,10 +8,13 @@ import { ext } from "../lib/compat.js";
 import { Storage } from "../lib/storage.js";
 import { searchItems } from "../lib/search.js";
 import { faviconMap, iconFromMap } from "../lib/favicons.js";
+import { isSavableTabUrl } from "../lib/sessions.js";
 
 const els = {
   savePageBtn: document.getElementById("savePageBtn"),
   savePageLabel: document.getElementById("savePageLabel"),
+  saveTabsBtn: document.getElementById("saveTabsBtn"),
+  tabsDeckSelect: document.getElementById("tabsDeckSelect"),
   noteInput: document.getElementById("noteInput"),
   searchRow: document.getElementById("searchRow"),
   searchInput: document.getElementById("searchInput"),
@@ -26,7 +29,7 @@ const els = {
 
 const PAGE_SIZE = 40;
 
-let state = { total: 0, decks: [], query: "", icons: new Map(), items: [] };
+let state = { total: 0, decks: [], query: "", icons: new Map(), items: [], tabCount: 0, tabsDeck: "inbox" };
 let searchTimer = null;
 let searchSeq = 0; // ignore out-of-order results from fast typing
 
@@ -62,6 +65,56 @@ els.savePageBtn.addEventListener("click", async () => {
     els.savePageLabel.textContent = "Save this page";
     els.savePageBtn.disabled = false;
   }, 1300);
+});
+
+// ---- Save all tabs as one session -----------------------------------------
+// One click keeps the whole window's research trail as a single searchable
+// card. The count is computed up front so the button never promises more
+// than it saves (pinned tabs, chrome pages and duplicates are skipped).
+async function countSavableTabs() {
+  try {
+    const wins = await chrome.windows.getAll({ populate: true, windowTypes: ["normal"] });
+    const win = wins.find((w) => w.focused) || wins[0];
+    if (!win) return 0;
+    return (win.tabs || []).filter((t) => isSavableTabUrl(t.url)).length;
+  } catch {
+    return 0;
+  }
+}
+
+function paintTabsButton() {
+  const n = state.tabCount;
+  els.saveTabsBtn.innerHTML = n > 0 ? `📑 Save all <b>${n}</b> tabs` : `📑 Save all tabs`;
+  els.saveTabsBtn.disabled = n === 0;
+  els.saveTabsBtn.title =
+    n > 0
+      ? `Save ${n} open tab${n === 1 ? "" : "s"} as one searchable session`
+      : "No savable tabs in this window";
+}
+
+els.saveTabsBtn.addEventListener("click", async () => {
+  els.saveTabsBtn.disabled = true;
+  try {
+    const res = await chrome.runtime.sendMessage({
+      type: "KIPI_SAVE_TABS",
+      deckId: els.tabsDeckSelect.value || state.tabsDeck || "inbox",
+      name: "",
+    });
+    if (res?.ok) {
+      await refresh();
+      window.close();
+    } else {
+      alert("Kipideck: " + (res?.error || res?.message || "could not save tabs."));
+      paintTabsButton();
+    }
+  } catch (err) {
+    alert("Kipideck: " + (err?.message || err));
+    paintTabsButton();
+  }
+});
+
+els.tabsDeckSelect.addEventListener("change", (e) => {
+  state.tabsDeck = e.target.value;
 });
 
 // ---- Quick note (Enter to save, no extra buttons) ----------------------
@@ -104,7 +157,7 @@ function timeAgo(ts) {
 }
 
 function typeEmoji(type) {
-  return { page: "📄", link: "🔗", image: "🖼️", video: "🎬", selection: "✍️", note: "🗒️" }[type] || "📄";
+  return { page: "📄", link: "🔗", image: "🖼️", video: "🎬", selection: "✍️", note: "🗒️", session: "📑" }[type] || "📄";
 }
 
 function escapeHtml(s) {
@@ -180,16 +233,27 @@ function paint(q) {
 }
 
 async function refresh() {
-  const [counts, decks, icons, settings] = await Promise.all([
+  const [counts, decks, icons, settings, tabCount] = await Promise.all([
     Storage.getCounts(),
     Storage.getDecks(),
     faviconMap(),
     Storage.getSettings(),
+    countSavableTabs(),
   ]);
   state.total = counts.total;
   state.decks = decks;
   state.icons = icons;
   state.onboardingDone = settings.onboardingDone !== false;
+  state.tabCount = tabCount;
+  els.tabsDeckSelect.innerHTML = decks
+    .map((d) => `<option value="${d.id}">${d.icon || "📥"} ${d.name}</option>`)
+    .join("");
+  els.tabsDeckSelect.value = state.tabsDeck;
+  if (!els.tabsDeckSelect.value && decks.length) {
+    els.tabsDeckSelect.value = decks[0].id;
+    state.tabsDeck = decks[0].id;
+  }
+  paintTabsButton();
   render();
 }
 

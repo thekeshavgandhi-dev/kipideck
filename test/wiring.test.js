@@ -49,6 +49,11 @@ const MODULES = [
   "lib/compat.js",
   "lib/classify.js",
   "lib/extract.js",
+  "lib/status.js",
+  "lib/sessions.js",
+  "lib/samples.js",
+  "lib/import.js",
+  "lib/exporters.js",
 ];
 
 function idsIn(html) {

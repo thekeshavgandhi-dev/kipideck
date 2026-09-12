@@ -110,10 +110,11 @@ Items below marked **v1.4 (partial)** were started here and still have work left
   Problem: ~70% of saves never reopened; guilt → avoidance → churn; only $120/yr Readwise addresses recall (R§4.3/4.14).
   Build: "Kipi Daily 5" (new-tab or notification digest: 2 unread + 2 forgotten gems + 1 random — spaced-repetition-lite); "🔀 Surprise me" button; per-deck "going stale" nudges; reading streaks (opt-in). All local, no account.
   Beats: the graveyard problem nobody free solves — this is the retention engine.
-- [ ] **I-12 · Save-state workflow (Unread → Reading → Done + Archive)** 🔥🔥🔥 · Effort S
+- [x] **I-12 · Save-state workflow (Unread → Reading → Done + Archive)** 🔥🔥🔥 · Effort S — **core shipped v1.6.0**
   Problem: piles grow unbounded; Burn 451's forced triage and Readwise's filters prove workflow beats buckets (R§3.1).
   Build: per-item status + Library filters; optional "triage mode" (swipe/keyboard through Inbox); auto-archive rules ("mark done after opening", "archive shopping after 30d").
   Metric: % of users at inbox-zero weekly.
+  ✅ v1.6.0: per-item `status` (schema v2, backfilled to unread) with indexed Library filters, status chips with live counts, `status:` search, bulk re-triage, per-item pills, and “mark done after opening”. Foreign read-states map onto it at import; JSON round-trips it, so it survives sync. Covered by `test/status.test.js` (33). Still open: keyboard/swipe triage mode, time-based auto-archive rules.
 
 ## P3 — Free AI layer (match $10/mo expectations at $0 marginal cost)
 
@@ -144,10 +145,11 @@ Items below marked **v1.4 (partial)** were started here and still have work left
   Problem: link rot; images hotlinked; only 20k chars; archives paywalled (Raindrop Pro) or heavy (ArchiveBox) (R§4.13).
   Build: save MHTML/single-file snapshot (local, capped size, per-deck retention rules) + screenshot thumbnail; "view archived copy" when live page 404s; images downloaded locally (respects size caps). Offline-first = works where server fetchers (Karakeep/Instapaper) fail on login-walled pages.
   Beats: paywalled archives + server-side fetchers, structurally.
-- [ ] **I-19 · Save-all-tabs + session restore (absorb tab managers)** 🔥🔥🔥🔥 · Effort S
+- [x] **I-19 · Save-all-tabs + session restore (absorb tab managers)** 🔥🔥🔥🔥 · Effort S — **core shipped v1.6.0**
   Problem: Toby/OneTab/Session Buddy users overlap heavily; their tools lose data and lack sync/search (R§3.6).
   Build: "Save N tabs to deck…" (popup + shortcut), named tab-groups-as-decks, one-click restore, auto-backup of sessions (anti-Session-Buddy-data-loss), tab search across saved sessions.
   Beats: absorbs 3 competitors' use case in ~1 week of work.
+  ✅ v1.6.0: “Save N tabs to deck…” (popup + Ctrl/⌘+Shift+S) saves the window as one searchable session; one-click restore (first tab focused, rest backgrounded, confirm above 20); tab titles + URLs indexed and searchable; sessions survive JSON/bookmark/Markdown export and re-import. Covered by `test/sessions.test.js` (23). Still open: named tab-groups-as-decks, automatic session back-ups.
 - [ ] **I-20 · PDF / newsletter / RSS / YouTube ingestion** 🔥🔥🔥🔥 · Effort L (staged)
   Problem: researchers/learners live in these formats; Readwise/Matter/Cubox ingest them, Kipideck can't (R§1.3).
   Build (staged): (a) PDF save + text extraction (pdf.js, local) + PDF highlight; (b) "email-to-Kipi" inbound address → newsletter deck (needs tiny receiver — or parse via user-Gmail API to stay serverless); (c) RSS follow → auto-save to Research; (d) YouTube: save + local transcript capture + summary (I-13).

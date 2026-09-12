@@ -176,6 +176,22 @@ export default function Home() {
               Edge, Brave, Opera, and Firefox.
             </p>
           </div>
+          <div className="card">
+            <div className="card-ico">✅</div>
+            <h3>Triage: Unread → Reading → Done</h3>
+            <p>
+              Every save lands as Unread. Filter the Library by save-state, retriage in bulk, or
+              let opening an item mark it done — your piles finally drain instead of growing.
+            </p>
+          </div>
+          <div className="card">
+            <div className="card-ico">📑</div>
+            <h3>Save all tabs as one session</h3>
+            <p>
+              One click (or Ctrl/⌘+Shift+S) keeps the whole window as a single searchable card —
+              and restores every tab exactly where you left off.
+            </p>
+          </div>
         </div>
       </section>
 

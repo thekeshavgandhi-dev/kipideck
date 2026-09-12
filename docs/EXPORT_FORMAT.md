@@ -63,7 +63,7 @@ Every item carries these. **Required** means present on every item written by `s
 | Field | Type | Req. | Meaning |
 |---|---|---|---|
 | `id` | string | ✅ | Stable unique id (`k_<base36>`). The key for merge, sync and tombstones. |
-| `type` | string | ✅ | `page` · `link` · `image` · `video` · `quote` · `document` … Defaults to `"page"`. |
+| `type` | string | ✅ | `page` · `link` · `image` · `video` · `quote` · `document` · `session` … Defaults to `"page"`. |
 | `title` | string | ✅ | Item title. May be `""` if the page had none; the URL stands in for display. |
 | `url` | string | ✅ | The canonical address of the item itself. |
 | `sourceUrl` | string | optional | The page this item was saved *from*, when different — e.g. the article you found a link on. |
@@ -78,6 +78,9 @@ Every item carries these. **Required** means present on every item written by `s
 | `createdAt` | number | ✅ | **Milliseconds** since the Unix epoch — when the item was saved. |
 | `updatedAt` | number | ✅ | **Milliseconds** since the epoch — last edit. Merge uses "newer `updatedAt` wins". |
 | `pinned` | boolean | ✅ | Whether the item is pinned. |
+| `status` | string | ✅ | The save-state: `unread` · `reading` · `done` · `archived` (v1.6.0+). Defaults to `"unread"`; pre-v1.6 records are backfilled on upgrade, foreign read-states map onto it at import. |
+| `tabs` | {url,title}[] | sessions | The saved window: one `{url, title}` entry per tab. Only on `type: "session"` items, which have no `url` of their own. |
+| `tabCount` | number | sessions | `tabs.length` at save time. A display hint — `tabs` is the source of truth. |
 | `content` | string | **optional** | Full stored page text, capped at 20,000 chars. **Absent entirely when empty** — this is the single most important rule in the format. |
 | `canon` | string | internal | Canonicalised URL used for de-duplication and tombstone matching across imports. |
 | `fp` | string | internal | Duplicate fingerprint (`u:<canon>` for URLs, `t:…` for text selections). |
@@ -164,10 +167,12 @@ format has nowhere to put it.
 | `tags` | `TAGS="a,b"` | Comma-joined. Commas inside a tag are replaced with spaces. |
 | `note` | `<DD>` description | Newlines flattened to spaces, capped at 2,000 chars. Highlights arrive here too, since they live in `note`. |
 | `pinned` | `PRIVATE="1"` | Only attribute available that means "special" without breaking importers. |
+| session item | one `<DT><H3>` folder holding one `<A>` per tab | Titled “<name> (N tabs)” with the session's `ADD_DATE`. A session with no restorable tabs exports nothing. |
 | `content` | *not exported* | The format cannot hold page text. |
 
 An item with **no URL exports nothing** — a `<DT><A>` with an empty `HREF` is invalid and would be
-rejected by the very importers this format exists to satisfy.
+rejected by the very importers this format exists to satisfy. Sessions are the exception: they have
+no URL of their own and export as a folder of their tabs instead.
 
 ---
 
@@ -189,6 +194,8 @@ Everything below is plain Markdown. It does not need Kipideck to be read, search
 _domain · saved 2026-09-12 · pinned · type_     <- italic meta line
 `#tag1` `#tag2`
 > excerpt
+**2 tabs**                  <- sessions list their tabs as links, right here
+- [Alpha](https://example.com/a)
 
 **Notes & highlights**
 > “quoted highlight”
@@ -235,6 +242,7 @@ running the actual exporters. Only the interesting parts are shown; the nine def
       "createdAt": 1789179412884,
       "updatedAt": 1789179412884,
       "pinned": true,
+      "status": "reading",
       "pf": 1,
       "canon": "example.com/2024/03/garden-path",
       "fp": "u:example.com/2024/03/garden-path",
@@ -250,6 +258,7 @@ running the actual exporters. Only the interesting parts are shown; the nine def
       "createdAt": 1789179412892,
       "updatedAt": 1789179412892,
       "pinned": false,
+      "status": "unread",
       "pf": 0,
       "canon": "developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API",
       "fp": "u:developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API"

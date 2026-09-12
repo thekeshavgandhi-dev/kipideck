@@ -2,6 +2,28 @@
 
 All versions are the extension version in `manifest.json`.
 
+## 1.6.0 — save-states + tab sessions (12 September 2026)
+
+Phase 2 begins: two ideas from `ideas.md` ship their core.
+
+### Added (I-12 · save-state workflow)
+
+- Every item now has a save-state — Unread → Reading → Done, plus Archive — stored in the
+  database (schema v2; existing libraries backfill to Unread on upgrade) and honoured
+  everywhere: Library status chips with live counts, per-item pills, bulk re-triage, the
+  `status:` search operator, and an optional “opening an item marks it done” setting.
+- Importers map foreign read-states onto it; JSON export/import round-trips it, so it
+  survives sync.
+
+### Added (I-19 · save-all-tabs + session restore)
+
+- “Save N tabs to deck…” in the popup, plus `Ctrl/⌘+Shift+S`: the whole window becomes one
+  searchable session card. Browser pages are skipped, duplicates merged, the list capped at
+  100 — and the button shows the real count before you click.
+- One-click restore reopens the window (first tab focused, the rest backgrounded, with a
+  confirmation above 20 tabs). Sessions export to bookmark HTML (one folder of links),
+  Markdown (a tab list) and JSON, and re-import whole.
+
 ## Unreleased — store-submission preparation
 
 No extension code changed. This is everything needed to make the actual submissions a formality.
