@@ -1,6 +1,13 @@
+// popup/popup.js — toolbar popup
+// Quick save, quick note, recent items, search. Everything here reads the
+// paginated IndexedDB layer (lib/db.js via Storage), so opening the popup on a
+// 50,000-item library costs the same as on an empty one: one page of records,
+// never the whole corpus.
+
 import { ext } from "../lib/compat.js";
 import { Storage } from "../lib/storage.js";
-import { search as fullTextSearch } from "../lib/search.js";
+import { searchItems } from "../lib/search.js";
+import { faviconMap, iconFromMap } from "../lib/favicons.js";
 
 const els = {
   savePageBtn: document.getElementById("savePageBtn"),
@@ -13,9 +20,15 @@ const els = {
   itemCount: document.getElementById("itemCount"),
   openLibraryBtn: document.getElementById("openLibraryBtn"),
   openLibraryLink: document.getElementById("openLibraryLink"),
+  setupRow: document.getElementById("setupRow"),
+  setupLink: document.getElementById("setupLink"),
 };
 
-let state = { items: [], decks: [], query: "" };
+const PAGE_SIZE = 40;
+
+let state = { total: 0, decks: [], query: "", icons: new Map(), items: [] };
+let searchTimer = null;
+let searchSeq = 0; // ignore out-of-order results from fast typing
 
 function openLibrary() {
   ext.tabs.create({ url: ext.runtime.getURL("library/library.html") });
@@ -37,14 +50,13 @@ els.savePageBtn.addEventListener("click", async () => {
     const res = await ext.runtime.sendMessage({ type: "KIPI_SAVE_PAGE" });
     ok = !!res?.ok;
     if (ok) await refresh();
+    else if (res?.skipped) els.savePageLabel.textContent = "Already saved ✓";
   } catch {
     ok = false;
   }
-  els.savePageLabel.textContent = ok ? "Saved ✓" : "Save this page";
-  if (!ok) {
-    els.savePageBtn.disabled = false;
-    return;
-  }
+  els.savePageLabel.textContent = ok ? "Saved ✓" : els.savePageLabel.textContent;
+  if (!ok && els.savePageLabel.textContent === "Saving…") els.savePageLabel.textContent = "Save this page";
+  els.savePageBtn.disabled = false;
   if (restoreTimer) clearTimeout(restoreTimer);
   restoreTimer = setTimeout(() => {
     els.savePageLabel.textContent = "Save this page";
@@ -72,7 +84,10 @@ els.noteInput.addEventListener("keydown", async (e) => {
 // ---- Search --------------------------------------------------------------
 els.searchInput.addEventListener("input", (e) => {
   state.query = e.target.value;
-  render();
+  // Debounced: at scale a query is cheap but not free, and nobody reads the
+  // intermediate results of the first three characters.
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => render(), 120);
 });
 
 // ---- Helpers --------------------------------------------------------------
@@ -93,7 +108,7 @@ function typeEmoji(type) {
 }
 
 function escapeHtml(s) {
-  return (s || "").replace(/[&<>\"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  return (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 function deckById(id) {
@@ -102,29 +117,49 @@ function deckById(id) {
 
 // ---- Render ----------------------------------------------------------------
 function render() {
-  els.itemCount.textContent = `${state.items.length} saved`;
-  els.searchRow.hidden = state.items.length === 0;
-
+  const seq = ++searchSeq;
   const q = state.query.trim();
-  const list = (q ? fullTextSearch(state.items, q) : state.items).slice(0, 40);
+
+  const work = q
+    ? searchItems({ query: q, limit: PAGE_SIZE, sort: "relevance" })
+    : Storage.queryItems({ sort: "new", limit: PAGE_SIZE });
+
+  Promise.resolve(work)
+    .then((res) => {
+      if (seq !== searchSeq) return; // a newer keystroke already superseded this
+      state.items = res.items || [];
+      paint(q);
+    })
+    .catch(() => {
+      if (seq !== searchSeq) return;
+      state.items = [];
+      paint(q);
+    });
+}
+
+function paint(q) {
+  els.itemCount.textContent = `${state.total.toLocaleString()} saved`;
+  els.searchRow.hidden = state.total === 0;
+  els.setupRow.hidden = state.onboardingDone !== false;
 
   els.itemsList.innerHTML = "";
-  if (list.length === 0) {
+  if (state.items.length === 0) {
     els.emptyState.querySelector(".empty-title").textContent =
-      q && state.items.length > 0 ? "No matches" : "Nothing saved yet";
+      q && state.total > 0 ? "No matches" : "Nothing saved yet";
     els.itemsList.appendChild(els.emptyState);
     return;
   }
 
-  for (const it of list) {
+  for (const it of state.items) {
     const deck = deckById(it.deckId);
     const card = document.createElement("div");
     card.className = "item-card";
+    // Icons come from the local cache or a locally drawn letter avatar — never
+    // from a third-party favicon service.
+    const icon = iconFromMap(state.icons, it.domain, it.title);
     const thumb = it.image
-      ? `<img src="${it.image}" onerror="this.parentElement.textContent='${typeEmoji(it.type)}'" />`
-      : it.favicon
-      ? `<img src="${it.favicon}" onerror="this.parentElement.textContent='${typeEmoji(it.type)}'" />`
-      : typeEmoji(it.type);
+      ? `<img src="${escapeHtml(it.image)}" alt="" onerror="this.parentElement.textContent='${typeEmoji(it.type)}'" />`
+      : `<img src="${icon}" alt="" />`;
     card.innerHTML = `
       <div class="item-thumb">${thumb}</div>
       <div class="item-body">
@@ -145,10 +180,24 @@ function render() {
 }
 
 async function refresh() {
-  const [items, decks] = await Promise.all([Storage.getItems(), Storage.getDecks()]);
-  state.items = items;
+  const [counts, decks, icons, settings] = await Promise.all([
+    Storage.getCounts(),
+    Storage.getDecks(),
+    faviconMap(),
+    Storage.getSettings(),
+  ]);
+  state.total = counts.total;
   state.decks = decks;
+  state.icons = icons;
+  state.onboardingDone = settings.onboardingDone !== false;
   render();
+}
+
+if (els.setupLink) {
+  els.setupLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    ext.tabs.create({ url: ext.runtime.getURL("onboarding/onboarding.html") });
+  });
 }
 
 ext.runtime.onMessage.addListener((msg) => {

@@ -2,7 +2,11 @@
    One thing lives here: the compact save-confirmation toast.
    (Selections auto-save themselves — no floating bubble needed anymore.)
    `all: initial` + explicit properties keep the toast safe on any page,
-   no matter what CSS the host site ships. */
+   no matter what CSS the host site ships.
+
+   The toast is also the disclosure for silent capture: when a selection was
+   auto-saved it says so and offers "Open" and "Never here", so capture on a
+   page is never invisible and never without an off switch. */
 
 .kipi-toast {
   all: initial;
@@ -25,6 +29,14 @@
 }
 .kipi-toast.leaving {
   animation: kipi-toast-out 0.28s ease forwards;
+}
+/* Clickable only when it carries actions — a plain confirmation must never
+   swallow clicks meant for the page underneath. */
+.kipi-toast-actions {
+  pointer-events: auto;
+  cursor: pointer;
+  max-width: 340px;
+  flex-wrap: wrap;
 }
 .kipi-toast-mark {
   flex: none;
@@ -78,4 +90,28 @@
     opacity: 0;
     transform: translateY(8px) scale(0.98);
   }
+}
+
+.kipi-toast-btn {
+  all: initial;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #5a3fe0;
+  background: #f3f0ff;
+  border: 1px solid #e3dcff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.kipi-toast-btn:hover {
+  background: #e9e3ff;
+  color: #3f27c4;
+}
+.kipi-toast-btn:focus-visible {
+  outline: 2px solid #7c5cfc;
+  outline-offset: 1px;
 }

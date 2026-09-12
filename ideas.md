@@ -1,13 +1,37 @@
 # Kipideck — Ideas to Beat Everyone
 
 **Companion:** [`RESEARCH.md`](./RESEARCH.md) — full competitor analysis, review synthesis, comparison matrix.
-**Date:** 2026-09-11 · Living doc: check off `✅` as shipped.
+**Status:** [`PROGRESS.md`](./PROGRESS.md) — what is shipped and measured · [`TASK.md`](./TASK.md) — what is next, with acceptance criteria.
+**Date:** 2026-09-11 (updated 2026-09-12) · Living doc: check off `✅` as shipped.
 
 > Strategy in one line: **own trust** (local-first, free, shutdown-proof), **match capture**,
 > **win find-it-again with free AI**, and **absorb adjacent jobs** (tabs, reader, highlights, audio)
 > that competitors charge $5–13/mo for.
 
 **Scoring:** Impact 🔥×1–5 (users won / churn prevented) · Effort XS–XL · `R§x` = evidence in RESEARCH.md.
+
+---
+
+## ✅ Phase 0 — foundation, shipped in v1.4 (2026-09-12)
+
+Sequenced *ahead* of this list on purpose: every idea below multiplies on a data
+layer that could hold 50,000 items, and v1.3 could not. What changed, with the
+measurements that justified it:
+
+| Was | Now |
+|---|---|
+| Full scan per keystroke: **2.2 s at 500 items, 45 s at 10,000** | Persistent IndexedDB index: **369 ms per keystroke, 376 ms for a 2-word AND at 50,000 items** |
+| Whole grid re-rendered on every change | 60-item pages + `IntersectionObserver` sentinel; first paint **59 ms**, offset 10,000 **481 ms** |
+| Sync = one JSON blob of the entire library: **4 MB @500, 20 MB @1k, 219 MB @50k** vs Drive's 5 MB limit | Sharded delta sync (64 metadata + 256 content buckets, hash-gated, resumable >4 MB, 40 ops/pass): **0.03 MB per 50 changed items** |
+| OAuth implicit flow — token died hourly, error swallowed | Authorization Code + **PKCE** + refresh token, silent refresh, failures counted and surfaced |
+| `importJSON` **replaced** the library | Merge with a dry-run preview (added/updated/skipped arithmetic shown first) |
+| Favicons from `google.com/s2` — leaked every domain to Google | Local favicon cache + letter avatars (**I-04**) |
+| Silent auto-capture with no disclosure | First-run disclosure page gating all silent capture (**I-03 slice**) + per-site mute |
+| No tests, no CI | **152 tests** (`node --test`) incl. a mocked Drive/OAuth sync suite, a wiring test, and a 50k-item benchmark; GitHub Actions on Node 20 + 22 |
+| No privacy policy | <https://kipideck.vercel.app/privacy> — every permission justified |
+| `Space`+`K` fired in YouTube/Gmail text fields | Per-site opt-out + a guard list, and a visible toggle |
+
+Items below marked **v1.4 (partial)** were started here and still have work left.
 
 ---
 
@@ -21,29 +45,35 @@
   Problem: BYO OAuth client-ID setup ≈ 0% completion by non-developers; hourly token expiry (`SESSION_EXPIRED`) (R§1.3).
   Build: ship a first-party OAuth client (free tier of Google Cloud; Drive appData scope is non-sensitive-ish) with one "Sign in with Google" button; keep BYO-client as advanced fallback; silent token refresh via short-lived re-auth or move to a tiny refresh-token-safe flow. Keep the "no Kipideck server" guarantee — tokens stay in the browser.
   Beats: Raindrop/Matter (account-locked clouds) on privacy + convenience simultaneously. Metric: % of installs with sync on.
+  **v1.4 (partial):** the *reliability* half is done — Authorization Code + PKCE, refresh tokens, silent refresh forever after, an optional client-secret field for Web/Desktop clients, and failures that are counted, shown in the Library pill and notified instead of swallowed. The *one-click* half is not: it still needs a first-party OAuth client (deliberately deferred, since it puts a Google-verified consent screen and a restricted-scope review in front of the store submission).
 - [ ] **I-03 · First-run onboarding (60 seconds to first save)** 🔥🔥🔥🔥 · Effort S
   Problem: empty library + no guidance = bounce; competitors (even bad ones) onboard (R§4.12).
   Build: welcome page on install: 1-click "save this demo page", deck tour, "import from…" shortcuts, keyboard shortcut card. Pre-seed 3 sample items (deletable) so search/decks demo themselves.
   Metric: D1 save rate, D7 retention.
-- [ ] **I-04 · Kill the small trust leaks** 🔥🔥🔥 · Effort XS–S
+  **v1.4 (partial):** `onboarding/onboarding.html` ships as the *disclosure* half — what is captured, what never is, where data lives, and the toggles that gate silent capture (nothing is captured automatically until a button is pressed there). Still to build: the demo save, deck tour, import shortcuts and pre-seeded sample items that make the first 60 seconds land.
+- [x] **I-04 · Kill the small trust leaks** 🔥🔥🔥 · Effort XS–S — **shipped v1.4**
   Problem: favicons via `google.com/s2` (tracks every domain, fails offline); junk auto-tags (`domain.split('.')[0]` → tags like "the"); no duplicate detection (R§1.3).
   Build: local favicon cache (fetch once, store blob, fallback to letter-icon); smarter tag hygiene (deny-list, max 5, de-dupe vs title words); "already saved" detection with "open existing" prompt.
   Beats: privacy story becomes airtight — required for the §5.1 positioning.
+  ✅ v1.4: `lib/favicons.js` (IndexedDB icon cache + locally drawn letter avatars, zero third-party requests); `lib/canon.js` `siteLabel()` + classifier hygiene (compound-suffix aware, junk deny-list, ≤5 suggestions, deduped against title words, user tags always win); duplicate fingerprints + `findDuplicate` with an "Already in your Kipideck — Open" toast (pages/links/images at any age, selections inside a 60 s window). Covered by `test/canon.test.js` + `test/classify.test.js`.
 
 ## P1 — Capture the refugee wave (highest ROI growth, do within weeks)
 
-- [ ] **I-05 · Pocket HTML + Instapaper CSV + Raindrop + browser-bookmark importers** 🔥🔥🔥🔥🔥 · Effort S–M
+- [x] **I-05 · Pocket HTML + Instapaper CSV + Raindrop + browser-bookmark importers** 🔥🔥🔥🔥🔥 · Effort S–M — **shipped (Phase 1)**
   Problem: millions mid-migration; winners all ship importers (Readwise 6/6, Matter 2-tap, Raindrop/Instapaper/Wallabag all accept Pocket HTML) (R§5.2). Kipideck has zero.
   Build: Library → Import: Pocket `.html`/`.csv`, Instapaper export, Raindrop backup, Chrome/Firefox bookmark HTML, generic URL list. Preserve tags, dates, read-state; auto-run classifier on import; show "N items rescued" celebration.
   Metric: imports/week; % of new users arriving via "Pocket alternative" pages.
-- [ ] **I-06 · "Welcome, Pocket & Omnivore refugees" landing + SEO pages** 🔥🔥🔥🔥 · Effort S
+  ✅ `lib/import.js`: **13 formats** — Pocket CSV *and* `ril_export.html` (redirect wrappers unwrapped, read state from the Unread/Read-Archive sections), Instapaper, Raindrop, Omnivore metadata **plus its `contents/<slug>.html` article text rejoined by slug**, Pinboard, Wallabag, Readwise Reader, browser bookmark HTML (nested folders → tags, Firefox `TAGS`/`PRIVATE`/`<DD>`), Chrome's raw `Bookmarks` JSON (1601-epoch microseconds), plain URL/Markdown lists, and our own JSON. Tags/dates/read-state preserved; archive and favourite become tags; highlights and annotations become notes; classifier runs when the target deck is "auto-organise". Multi-file import merges Pocket's `part_*.csv` and Omnivore's `metadata_*.json`; dedupe is by canonical URL within a file, across files, and against the library (tombstones now carry canon, so a delete survives re-import); preview-before-write with per-file warnings, a progress bar, and an "N items rescued" panel. 20k-row CSV parses in ~450 ms; 2,000 records write + index in ~755 ms. Still open: the extension cannot unzip (`TASK.md` T-list, Phase 2). Covered by `test/import.test.js` (95) + `test/import-storage.test.js` (15).
+- [ ] **I-06 · "Welcome, Pocket & Omnivore refugees" landing + SEO pages** 🔥🔥🔥🔥 · Effort S — **in progress (1 of 4 pages live)**
   Problem: Matter/Readwise/Wallabag openly campaign for refugees; Kipideck invisible (R§3.1).
   Build: `/pocket-alternative`, `/omnivore-alternative`, `/raindrop-alternative` pages: honest comparison table (reuse R§6), 3-step migration guide, "your data can't be deleted by us" guarantee. Submit to alternative-to directories.
   Metric: organic signups/installs from these pages.
-- [ ] **I-07 · "Shutdown-proof" guarantee page + full export (JSON/HTML/Markdown)** 🔥🔥🔥🔥 · Effort S
+  🟡 `/pocket-alternative` ships: verified shutdown timeline (22 May / 8 Jul / **12 Nov 2025** deletion), the four-step rescue, a what-survives table that admits Pocket never exported article text, a comparison table, and six FAQs including "I never exported — can I recover it?" (no). `app/components/PageShell.js` gives the remaining pages one shared nav/footer. Still to build: `/omnivore-alternative`, `/raindrop-alternative`, `/shutdown-proof`, and the homepage funnel (`TASK.md` T1–T3, T5). Directory submissions not started.
+- [ ] **I-07 · "Shutdown-proof" guarantee page + full export (JSON/HTML/Markdown)** 🔥🔥🔥🔥 · Effort S — **exports shipped; pledge page + schema doc pending**
   Problem: post-shutdown, users ask "what happens if you die?" before asking about features; mymind's thin export is hated (R§4.2/4.11).
   Build: public pledge — readable local format, one-click export of *everything incl. full text + notes + tags*, documented schema, "works forever offline even if we vanish". Export to portable HTML (Netscape bookmark format = imports everywhere) + Markdown vault.
   Beats: literally every cloud competitor on the question users now ask first.
+  🟡 `lib/exporters.js` + `Storage.exportBookmarkHtml()` / `exportMarkdown()` join the existing streamed JSON export, all three chunked so a 50k library never becomes one string, and offered in a Library export dialog that states each format's trade-off. Bookmark HTML carries links, titles, `ADD_DATE`, one folder per deck, `TAGS`, `<DD>` notes and `PRIVATE` for pins; Markdown carries the library as notes with optional page text in `<details>`. Our own bookmark export re-imports through our own importer with URLs, titles, tags, dates, folders and notes intact — asserted as a round trip in `test/export.test.js` (25). 1,000 items export to HTML in ~12 ms. Still to build: `docs/EXPORT_FORMAT.md` (the "documented schema" half) and the public `/shutdown-proof` pledge page (`TASK.md` T2, T4).
 
 ## P2 — Win "consume" (reader, highlights, audio, recall)
 
@@ -82,7 +112,7 @@
   Problem: current classifier is ~13 English regexes; mymind/Recall prove auto-tag quality is the magic (R§1.3).
   Build: layered: keep instant regex → add on-device keyword extraction (TF-IDF/TextRank over saved text) → optional user-trained rules ("always file `*.edu` → Research"); learn from manual deck moves (per-domain memory). Show "why filed here" with one-click correction that teaches.
   Beats: Raindrop's paywalled AI tagging, mymind's opaque AI, Instapaper's nothing.
-- [ ] **I-16 · Auto-dedupe + "related items"** 🔥🔥🔥 · Effort S–M
+- [ ] **I-16 · Auto-dedupe + "related items"** 🔥🔥🔥 · Effort S–M — **auto-dedupe shipped v1.4; "related" still open**
   Problem: re-saves and URL variants pile up; nobody connects related saves except expensive graphs (Recall knowledge graph) (R§3.3).
   Build: canonical-URL + title-fingerprint dedupe at save ("you saved this 3mo ago — open it?"); related-items rail via shared tags + embedding similarity.
   Beats: keeps libraries clean automatically — a quiet, loved moat.
@@ -112,7 +142,7 @@
 
 ## P5 — Moat: sync v2, sharing, integrations
 
-- [ ] **I-22 · Sync v2: delta sync + scale + E2E encryption** 🔥🔥🔥🔥 · Effort L
+- [ ] **I-22 · Sync v2: delta sync + scale + E2E encryption** 🔥🔥🔥🔥 · Effort L — **delta + scale shipped v1.4; E2E still open**
   Problem: single-JSON-snapshot upload won't scale to 10k items; record-level merge; no encryption (R§1.3).
   Build: chunked/delta uploads (only changed records), pagination + lazy content fetch, field-level merge for notes/tags/pins, optional E2E encryption (passphrase-derived key, zero-knowledge — Drive sees ciphertext). Keep tombstone discipline.
   Beats: privacy absolutists (Wallabag/Karakeep self-hosters) get their guarantees with zero setup.

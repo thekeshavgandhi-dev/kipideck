@@ -1,58 +1,75 @@
 // content/content.js — Kipideck content script
 //
-//  - Auto-save: the moment you finish selecting text on a page, the
-//    selection is saved to Kipideck together with the page it came from
-//    (title, URL, favicon) as its reference. No bubble to click, nothing
-//    to confirm. Selecting the same text again within 30 s is ignored, so
-//    nudging a selection around doesn't spam the library. Toggle it in
-//    Library → Settings.
-//  - Quick-save: press Space, then K — saves the current page. A two-key
-//    combo on purpose: it can't collide with any browser or site shortcut
-//    (Ctrl+K, Alt+K, etc. are taken somewhere).
-//  - Toasts: one compact confirmation when a save lands.
-//  - Website bridge: lets kipideck.vercel.app detect the extension and
-//    open the visitor's own library.
+//  - Auto-save: the moment you finish selecting text on a page, the selection
+//    is saved together with the page it came from as its reference. This is
+//    SILENT CAPTURE, so it never happens before the first-run disclosure has
+//    been accepted, never happens on a site the user muted, and always says so
+//    on screen with a toast that offers "Open" and "Never on this site".
+//  - Quick-save: press Space, then K. Skipped on sites where Space/K are real
+//    shortcuts (YouTube, Gmail, most players) — see SHORTCUT_BLOCKED_HOSTS in
+//    lib/storage.js — and switchable off entirely in Settings.
+//  - Toasts: one compact confirmation when a save lands, clickable.
+//  - Website bridge: lets the marketing site detect the extension and open the
+//    visitor's own library.
 //
-// Uses the Promise-based `browser.*` API (polyfilled on Chromium via
-// lib/browser-polyfill.js, native on Firefox) — never callbacks.
+// This is a CLASSIC script (not a module — see manifest.content_scripts.js), so
+// it cannot `import`. Everything policy-related is therefore asked of the
+// background script, which owns the single source of truth (settings, mute list,
+// shortcut blocklist, onboarding state). Uses the Promise-based `browser.*` API,
+// never callbacks.
 
 (function () {
   if (window.__kipiContentLoaded) return;
   window.__kipiContentLoaded = true;
 
   // ---------------------------------------------------------------------------
-  // Settings (cached so we never hit storage on every mouseup/keypress)
+  // Capture policy (fetched from the background, refreshed when settings change)
   // ---------------------------------------------------------------------------
-  let settingsCache = {};
+  let policy = {
+    autoSaveSelection: false,
+    spaceKQuickSave: false,
+    showToast: true,
+    muted: false,
+    onboardingDone: false,
+  };
 
-  function autoSaveEnabled() {
-    // `autoSaveSelection` is the current key; `showFloatingButton` is the
-    // pre-1.3 key for the same behaviour, honored as a fallback so existing
-    // installs don't change how they behave on update.
-    return settingsCache.autoSaveSelection ?? settingsCache.showFloatingButton ?? true;
+  function refreshPolicy() {
+    return browser.runtime
+      .sendMessage({ type: "KIPI_GET_CAPTURE_POLICY", host: location.host })
+      .then((res) => {
+        if (res) policy = res;
+      })
+      .catch(() => {
+        /* background asleep or extension reloaded — keep the last known policy,
+           which defaults to capturing nothing silently */
+      });
   }
 
-  browser.storage?.local?.get("kipi_settings").then((res) => {
-    if (res?.kipi_settings) settingsCache = res.kipi_settings;
-  });
+  refreshPolicy();
   browser.storage?.onChanged?.addListener((changes) => {
-    if (changes.kipi_settings) settingsCache = changes.kipi_settings.newValue;
+    if (changes.kipi_settings) refreshPolicy();
   });
 
   // ---------------------------------------------------------------------------
-  // Compact confirmation toast
+  // Toast — the on-screen record that something was captured, and the way out
   // ---------------------------------------------------------------------------
   let toastEl = null;
   let toastHideTimer = null;
   let toastLeaveTimer = null;
 
-  function showToast(title, sub) {
+  /**
+   * @param {string} title
+   * @param {string} [sub]
+   * @param {{label: string, onClick: Function}[]} [actions]
+   */
+  function showToast(title, sub, actions) {
+    if (!policy.showToast) return null;
     if (toastHideTimer) clearTimeout(toastHideTimer);
     if (toastLeaveTimer) clearTimeout(toastLeaveTimer);
     if (toastEl) toastEl.remove();
 
     const el = document.createElement("div");
-    el.className = "kipi-toast";
+    el.className = "kipi-toast" + (actions && actions.length ? " kipi-toast-actions" : "");
 
     const mark = document.createElement("span");
     mark.className = "kipi-toast-mark";
@@ -71,16 +88,56 @@
 
     el.appendChild(mark);
     el.appendChild(text);
-    document.documentElement.appendChild(el);
-    toastEl = el;
 
-    toastHideTimer = setTimeout(() => {
+    for (const action of actions || []) {
+      const btn = document.createElement("button");
+      btn.className = "kipi-toast-btn";
+      btn.type = "button";
+      btn.textContent = action.label;
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          action.onClick();
+        } catch {
+          /* a toast action must never break the host page */
+        }
+        dismiss();
+      });
+      el.appendChild(btn);
+    }
+
+    function dismiss() {
       el.classList.add("leaving");
       toastLeaveTimer = setTimeout(() => {
         el.remove();
         if (toastEl === el) toastEl = null;
       }, 280);
-    }, 2400);
+    }
+
+    el.addEventListener("click", () => dismiss());
+    document.documentElement.appendChild(el);
+    toastEl = el;
+
+    const duration = actions && actions.length ? 5200 : 2400;
+    toastHideTimer = setTimeout(dismiss, duration);
+    return el;
+  }
+
+  function openItem(itemId) {
+    browser.runtime.sendMessage({ type: "KIPI_OPEN_ITEM", itemId }).catch(() => {});
+  }
+
+  /** "Never capture on this site" — the point-of-collection off switch. */
+  function muteThisSite() {
+    browser.runtime
+      .sendMessage({ type: "KIPI_MUTE_SITE", host: location.host })
+      .then(() => {
+        policy.autoSaveSelection = false;
+        policy.muted = true;
+        showToast("Kipideck will stay quiet here", location.host + " · undo in Library → Settings");
+      })
+      .catch(() => {});
   }
 
   function saveSelection(text) {
@@ -125,7 +182,9 @@
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => {
       autoSaveTimer = null;
-      if (!autoSaveEnabled()) return;
+      // Silent capture requires an accepted disclosure and a site that is not
+      // muted. The background decides both; the default here is "capture nothing".
+      if (!policy.autoSaveSelection) return;
       const text = currentSelectionText();
       if (!text) return;
       const key = location.host + "|" + text.replace(/\s+/g, " ").toLowerCase();
@@ -135,7 +194,12 @@
       if (recentSaves.size > 200) recentSaves.clear();
       recentSaves.set(key, now);
       saveSelection(text).then((res) => {
-        if (res?.ok) showToast("Auto-saved to Kipideck", res.item?.title);
+        if (res?.ok) {
+          showToast("Auto-saved to Kipideck", res.item?.title, [
+            { label: "Open", onClick: () => openItem(res.item?.id) },
+            { label: "Never here", onClick: muteThisSite },
+          ]);
+        }
       });
     }, 250);
   }
@@ -157,23 +221,33 @@
   const SPACE_K_WINDOW_MS = 1200;
 
   function quickSave() {
-    // With auto-save switched off, Space+K is also the one-key way to
-    // capture a live selection — use it for that if one exists.
-    if (!autoSaveEnabled()) {
-      const text = currentSelectionText();
-      if (text) {
-        saveSelection(text).then((res) => {
-          if (res?.ok) showToast("Saved selection to Kipideck", res.item?.title);
-        });
-        return;
-      }
-    }
     browser.runtime
       .sendMessage({ type: "KIPI_SAVE_PAGE" })
       .then((res) => {
-        if (res?.ok) showToast("Saved page to Kipideck", res.item?.title);
+        if (res?.ok) {
+          showToast("Saved page to Kipideck", res.item?.title, [
+            { label: "Open", onClick: () => openItem(res.item?.id) },
+          ]);
+        } else if (res?.skipped) {
+          showToast("Already in your Kipideck", "", [
+            res.existingId ? { label: "Open", onClick: () => openItem(res.existingId) } : null,
+          ].filter(Boolean));
+        }
       })
       .catch(() => {});
+  }
+
+  function quickSaveSelection() {
+    const text = currentSelectionText();
+    if (!text) return false;
+    saveSelection(text).then((res) => {
+      if (res?.ok) {
+        showToast("Saved selection to Kipideck", res.item?.title, [
+          { label: "Open", onClick: () => openItem(res.item?.id) },
+        ]);
+      }
+    });
+    return true;
   }
 
   document.addEventListener(
@@ -189,7 +263,10 @@
       }
       const now = Date.now();
       if (e.key === " ") {
-        spaceArmedAt = now;
+        // Only arm on sites where Space isn't a real shortcut (players, Gmail,
+        // YouTube). Without this, pausing a video and pressing K caused
+        // surprise saves on every video watched.
+        spaceArmedAt = policy.spaceKQuickSave ? now : 0;
         return;
       }
       if (
@@ -198,6 +275,9 @@
         now - spaceArmedAt <= SPACE_K_WINDOW_MS
       ) {
         spaceArmedAt = 0;
+        // With auto-save switched off, Space+K is also the one-key way to
+        // capture a live selection — use it for that if one exists.
+        if (!policy.autoSaveSelection && quickSaveSelection()) return;
         quickSave();
         return;
       }
@@ -206,19 +286,22 @@
     true
   );
 
-  // Toasts forwarded from the background.
+  // Toasts forwarded from the background (e.g. "already in your Kipideck").
   browser.runtime.onMessage.addListener((msg) => {
-    if (msg?.type === "KIPI_TOAST") showToast(msg.text);
+    if (msg?.type === "KIPI_TOAST") {
+      showToast(msg.text, msg.sub, msg.action?.itemId ? [{ label: msg.action.label || "Open", onClick: () => openItem(msg.action.itemId) }] : undefined);
+    } else if (msg?.type === "KIPI_POLICY_CHANGED") {
+      refreshPolicy();
+    }
   });
 
   // ---------------------------------------------------------------------------
-  // Kipideck website bridge — lets the Vercel-hosted marketing site
-  // (kipideck.vercel.app) detect that the extension is installed and ask it to
-  // open the user's own library (local items + Google Drive synced items).
-  // The website itself can never read extension data directly (different
-  // origin / storage) — it just sends a window message, this content script
-  // forwards it to the background script, and the background opens
-  // library/library.html in a new tab. No GitHub or server involved.
+  // Kipideck website bridge — lets the hosted marketing site detect that the
+  // extension is installed and ask it to open the user's own library (local
+  // items + Google Drive synced items). The website itself can never read
+  // extension data directly (different origin / storage) — it just sends a
+  // window message, this content script forwards it to the background script,
+  // and the background opens library/library.html in a new tab.
   // ---------------------------------------------------------------------------
   try {
     const FLAG = "__KIPIDECK_INSTALLED__";

@@ -1,0 +1,19 @@
+{
+  "name": "kipideck",
+  "version": "1.4.0",
+  "private": true,
+  "description": "Kipideck browser extension \u2014 local-first save & auto-organize. Root package exists only for the test harness; the shipping extension has zero runtime dependencies.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:scale": "node --max-old-space-size=6144 test/scale.bench.js",
+    "package": "npm --prefix website run package-extension",
+    "check": "npm test && npm run package"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.2"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}

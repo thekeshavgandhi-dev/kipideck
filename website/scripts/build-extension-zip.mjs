@@ -11,8 +11,8 @@
 //   website/public/downloads/kipideck-extension.zip  — the installable package
 //   website/public/downloads/version.json            — { version, builtAt, ... }
 
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, statSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 
@@ -25,29 +25,76 @@ const zipPath = join(outDir, zipName);
 
 // Every file that makes up the installable extension. manifest.json MUST be at
 // the zip root (inside the top-level kipideck/ folder) for "Load unpacked".
-const EXTENSION_FILES = [
-  "manifest.json",
-  "background/background.js",
-  "content/content.js",
-  "content/content.css",
-  "lib/browser-polyfill.js",
-  "lib/classify.js",
-  "lib/compat.js",
-  "lib/drive-sync.js",
-  "lib/extract.js",
-  "lib/search.js",
-  "lib/storage.js",
-  "popup/popup.css",
-  "popup/popup.html",
-  "popup/popup.js",
-  "library/library.css",
-  "library/library.html",
-  "library/library.js",
-  "icons/icon128.png",
-  "icons/icon16.png",
-  "icons/icon32.png",
-  "icons/icon48.png",
-];
+//
+// The list is DERIVED from these directories rather than hardcoded file names:
+// a hardcoded list silently shipped a package with no onboarding page the first
+// time a new file was added, and a broken first-run page is exactly the kind of
+// bug nobody notices until users hit it. `assertPackageComplete` below then
+// cross-checks the result against manifest.json and every runtime.getURL() call
+// in the source, so a missing file fails the build instead of the install.
+const EXTENSION_ROOT_FILES = ["manifest.json"];
+const EXTENSION_DIRS = ["background", "content", "lib", "popup", "library", "onboarding", "icons"];
+const SKIP = /^(node_modules|\.DS_Store|.*\.map)$/;
+
+function walk(dir, out = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (SKIP.test(entry.name)) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) walk(full, out);
+    else out.push(full);
+  }
+  return out;
+}
+
+function extensionFiles() {
+  const files = [];
+  for (const rel of EXTENSION_ROOT_FILES) {
+    const full = join(repoRoot, rel);
+    if (existsSync(full)) files.push(full);
+  }
+  for (const dir of EXTENSION_DIRS) {
+    const full = join(repoRoot, dir);
+    if (existsSync(full)) files.push(...walk(full));
+  }
+  return files.map((full) => relative(repoRoot, full).split("\\").join("/")).sort();
+}
+
+/** Fail loudly if the package would not actually work when unpacked. */
+function assertPackageComplete(packed) {
+  const have = new Set(packed);
+  const missing = [];
+
+  const manifest = JSON.parse(readFileSync(join(repoRoot, "manifest.json"), "utf8"));
+  const referenced = [
+    manifest.action?.default_popup,
+    manifest.options_ui?.page,
+    manifest.background?.service_worker,
+    ...(manifest.background?.scripts || []),
+    ...Object.values(manifest.icons || {}),
+    ...Object.values(manifest.action?.default_icon || {}),
+    ...(manifest.content_scripts || []).flatMap((cs) => [...(cs.js || []), ...(cs.css || [])]),
+    ...(manifest.web_accessible_resources || []).flatMap((w) => w.resources || []),
+  ].filter(Boolean);
+  for (const rel of referenced) if (!have.has(rel)) missing.push(`manifest.json → ${rel}`);
+
+  // Any page the code opens with runtime.getURL() must be in the package too —
+  // this is what catches a new HTML page that nobody added to the list.
+  const urlRe = /getURL\(\s*["'`]([^"'`]+)["'`]/g;
+  for (const rel of packed) {
+    if (!/\.js$/.test(rel)) continue;
+    const src = readFileSync(join(repoRoot, rel), "utf8");
+    for (const m of src.matchAll(urlRe)) {
+      const target = m[1].replace(/#.*$/, "");
+      if (target && !have.has(target)) missing.push(`${rel} → getURL("${m[1]}")`);
+    }
+  }
+
+  if (missing.length) {
+    console.error("[package-extension] package would be incomplete:");
+    for (const m of missing) console.error(`  - ${m}`);
+    process.exit(1);
+  }
+}
 
 function readVersion() {
   try {
@@ -68,7 +115,7 @@ async function buildWithArchiver() {
     });
     archive.on("error", reject);
     archive.pipe(output);
-    for (const rel of EXTENSION_FILES) {
+    for (const rel of packedFiles) {
       // Put everything under a top-level kipideck/ folder so unzipping gives a
       // ready-to-load folder.
       archive.file(join(repoRoot, rel), { name: `kipideck/${rel}` });
@@ -83,7 +130,7 @@ function buildWithZipCli() {
   const os = join(repoRoot, ".zip-stage");
   execFileSync("rm", ["-rf", os]);
   mkdirSync(join(os, "kipideck"), { recursive: true });
-  for (const rel of EXTENSION_FILES) {
+  for (const rel of packedFiles) {
     const dest = join(os, "kipideck", rel);
     mkdirSync(dirname(dest), { recursive: true });
     execFileSync("cp", [join(repoRoot, rel), dest]);
@@ -93,13 +140,16 @@ function buildWithZipCli() {
   execFileSync("rm", ["-rf", os]);
 }
 
+let packedFiles = [];
+
 async function main() {
-  for (const rel of EXTENSION_FILES) {
-    if (!existsSync(join(repoRoot, rel))) {
-      console.error(`[package-extension] MISSING required file: ${rel}`);
-      process.exit(1);
-    }
+  packedFiles = extensionFiles();
+  if (!packedFiles.includes("manifest.json")) {
+    console.error("[package-extension] MISSING required file: manifest.json");
+    process.exit(1);
   }
+  assertPackageComplete(packedFiles);
+  console.log(`[package-extension] packaging ${packedFiles.length} files`);
   mkdirSync(outDir, { recursive: true });
 
   let method = "archiver";
@@ -127,7 +177,9 @@ async function main() {
     method,
   };
   writeFileSync(join(outDir, "version.json"), JSON.stringify(meta, null, 2) + "\n");
-  console.log(`[package-extension] wrote ${zipPath} (${meta.sizeKB} KB, ext v${version}) + version.json`);
+  console.log(
+    `[package-extension] wrote ${zipPath} (${meta.sizeKB} KB, ${packedFiles.length} files, ext v${version}) + version.json`
+  );
 }
 
 main().catch((err) => {

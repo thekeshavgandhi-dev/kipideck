@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Welcome to Kipideck — what it saves, and what it never touches</title>
+<link rel="stylesheet" href="onboarding.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="head">
+      <img src="../icons/icon128.png" alt="" class="logo" />
+      <h1 id="pageTitle">Welcome to Kipideck</h1>
+      <p class="lede" id="pageLede">
+        Kipideck saves things you point it at — a page, a link, an image, or text you
+        selected — and keeps them searchable on this device. Before it saves anything
+        <em>on its own</em>, here is exactly what that means.
+      </p>
+      <p class="gate-note">
+        🔒 Nothing is captured automatically until you choose below. Explicit saves —
+        right-click → <strong>Save to Kipi</strong>, the toolbar popup, or
+        <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>K</kbd> — always work.
+      </p>
+    </header>
+
+    <section class="card">
+      <h2>What Kipideck can save</h2>
+      <ul class="fact-list">
+        <li>
+          <span class="ico">📄</span>
+          <div>
+            <strong>The page you save</strong> — its title, URL, domain, and the site's own
+            preview image and description.
+            <span class="when">Only when you save that page.</span>
+          </div>
+        </li>
+        <li>
+          <span class="ico">🔎</span>
+          <div>
+            <strong>Up to 20,000 characters of that page's visible text</strong>, so you can
+            search inside articles later instead of just by title.
+            <span class="when">Only for pages you save. Never for pages you merely visit.</span>
+          </div>
+        </li>
+        <li>
+          <span class="ico">✂️</span>
+          <div>
+            <strong>Text you select on a page</strong>, saved as a quote with a link back to it.
+            <span class="when">Only if “Auto-save my selections” is on below.</span>
+          </div>
+        </li>
+        <li>
+          <span class="ico">🔗</span>
+          <div>
+            <strong>A link or image you right-click</strong> — the URL, and the page it was on.
+            <span class="when">Only on that right-click.</span>
+          </div>
+        </li>
+        <li>
+          <span class="ico">🏷️</span>
+          <div>
+            <strong>Your own notes and tags</strong>, and the deck you file things into.
+            <span class="when">Only what you type or choose.</span>
+          </div>
+        </li>
+        <li>
+          <span class="ico">🎨</span>
+          <div>
+            <strong>The site's favicon</strong>, fetched from the site itself and cached on your
+            device so the library looks like a library.
+            <span class="when">Only for domains you have saved. No third-party icon service is ever asked.</span>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <section class="card never">
+      <h2>What Kipideck never does</h2>
+      <ul class="fact-list">
+        <li><span class="ico">🚫</span><div><strong>No browsing history.</strong> It only ever sees the page you act on.</div></li>
+        <li><span class="ico">🚫</span><div><strong>No keystrokes, no form contents, no passwords,</strong> and nothing from your other tabs.</div></li>
+        <li><span class="ico">🚫</span><div><strong>No analytics, no ads, no tracking pixels,</strong> no crash reporting, no third-party requests of any kind.</div></li>
+        <li><span class="ico">🚫</span><div><strong>No Kipideck server.</strong> There isn't one — so there is nothing we could read, sell, or lose in a breach.</div></li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Where your data lives</h2>
+      <ul class="fact-list">
+        <li>
+          <span class="ico">💾</span>
+          <div>
+            <strong>On this device, in this browser profile</strong> (IndexedDB). Your library
+            works fully offline, and deleting the extension deletes it.
+          </div>
+        </li>
+        <li>
+          <span class="ico">☁️</span>
+          <div>
+            <strong>Optionally, in your own Google Drive</strong> — a hidden “app data” folder
+            only Kipideck can read, using your own OAuth client.
+            <span class="when">Off until you set it up in Library → Settings → Sync.</span>
+          </div>
+        </li>
+        <li>
+          <span class="ico">📦</span>
+          <div>
+            <strong>Exportable any time</strong> as JSON from the Library, and importable back —
+            merges with what you already have instead of replacing it.
+          </div>
+        </li>
+      </ul>
+      <p class="links">
+        <a href="https://kipideck.vercel.app/privacy" target="_blank" rel="noopener">Privacy policy</a>
+        ·
+        <a href="https://kipideck.vercel.app/sync-setup" target="_blank" rel="noopener">Drive sync setup guide</a>
+      </p>
+    </section>
+
+    <section class="card choices">
+      <h2>Choose what happens automatically</h2>
+      <p class="muted">You can change every one of these later in Library → Settings.</p>
+
+      <label class="choice">
+        <input type="checkbox" id="autoSaveToggle" />
+        <span class="switch" aria-hidden="true"></span>
+        <span class="choice-text">
+          <strong>Auto-save text I select</strong>
+          <span class="when">
+            Selecting a passage files it as a quote. Every auto-save shows a toast with
+            <em>Open</em> and <em>Never here</em> — one click mutes that site for good.
+          </span>
+        </span>
+      </label>
+
+      <label class="choice">
+        <input type="checkbox" id="spaceKToggle" />
+        <span class="switch" aria-hidden="true"></span>
+        <span class="choice-text">
+          <strong><kbd>Space</kbd> + <kbd>K</kbd> saves the page I'm reading</strong>
+          <span class="when">
+            Automatically disabled on sites where Space already does something else — video and
+            music players, Gmail, Google Docs, Drive — and inside any text field, and on any page
+            you have muted.
+          </span>
+        </span>
+      </label>
+
+      <label class="choice">
+        <input type="checkbox" id="toastToggle" />
+        <span class="switch" aria-hidden="true"></span>
+        <span class="choice-text">
+          <strong>Show a toast when something is saved</strong>
+          <span class="when">The confirmation that tells you what was captured, and where it went.</span>
+        </span>
+      </label>
+    </section>
+
+    <footer class="actions">
+      <button id="finishBtn" class="btn-primary">Save my choices &amp; open my library →</button>
+      <button id="quietBtn" class="btn-ghost">Continue with auto-capture off</button>
+      <p class="fineprint" id="statusLine">
+        Choosing either button turns Kipideck on. Nothing leaves your device.
+      </p>
+    </footer>
+  </main>
+
+  <script type="module" src="onboarding.js"></script>
+</body>
+</html>

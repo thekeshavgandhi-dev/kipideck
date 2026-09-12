@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Kipideck — Save & Organize Anything",
   "short_name": "Kipideck",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Right-click anything on the web — a page, a link, some text, or an image — and save it to Kipideck in one click. Text selections save themselves automatically, decks auto-organize, and everything stays fully searchable and synced across every browser via your own Google Drive.",
   "icons": {
     "16": "icons/icon16.png",
