@@ -99,6 +99,7 @@ export default function DeckPage() {
             <a href="/">Home</a>
             <a href="/sync-setup">Sync setup guide</a>
             <a href="/#install">Install</a>
+            <a href="/privacy">Privacy</a>
           </nav>
           <p className="muted">
             Private by design — this website never sees your saved items. They open directly from

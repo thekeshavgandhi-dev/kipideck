@@ -32,6 +32,7 @@ A live marketing/docs site for this project lives in [`website/`](website/)
 - [The Library dashboard](#the-library-dashboard)
 - [Project structure](#project-structure)
 - [Run it locally](#run-it-locally)
+- [Testing & CI](#testing--ci)
 - [Hosting & deployment](#hosting--deployment)
 - [Data & privacy](#data--privacy)
 - [Roadmap ideas](#roadmap-ideas)
@@ -102,20 +103,32 @@ service, no network calls, works offline.
 Turn on sync in **Library → Settings → Sync**, sign in with Google once per
 browser, and your decks follow you everywhere:
 
-- Kipideck stores a single JSON snapshot in a hidden **"app data" folder**
-  that Google Drive reserves per-app — it never shows up in your normal
-  Drive file list, and only Kipideck's own OAuth client can read or write it.
+- Kipideck writes **sharded JSON** into a hidden **"app data" folder** that
+  Google Drive reserves per-app — it never shows up in your normal Drive file
+  list, and only Kipideck's own OAuth client can read or write it. One small
+  state file indexes the shards; item metadata lives in 64 buckets and page
+  text in 256 separate ones, so a 50,000-item library stays far below Drive's
+  5 MB per-file upload limit. (v1.3 uploaded the *entire* library as one blob
+  on every save: 4 MB at 500 items, 20 MB at 1,000, ~219 MB at 50,000.)
+- Only shards whose contents actually changed are uploaded, tracked by a
+  content hash, and anything over 4 MB uses a resumable upload. Editing one
+  title re-uploads two shards instead of the whole library.
 - **No server of ours is involved at all.** Google's infrastructure *is*
   the sync backend. There's nothing for us to host, nothing for us to see.
-- Sign-in uses the standard `identity.launchWebAuthFlow()` OAuth2 flow —
-  not Chrome's proprietary `getAuthToken` — so the exact same sign-in code
-  works on Chrome, Edge, Brave, Opera, *and* Firefox.
+- Sign-in is **Authorization Code + PKCE** through the standard
+  `identity.launchWebAuthFlow()` — not Chrome's proprietary `getAuthToken`,
+  and not the deprecated implicit flow — so the exact same sign-in code works
+  on Chrome, Edge, Brave, Opera, *and* Firefox, and a refresh token keeps the
+  session alive instead of expiring every hour.
 - Merging is safe: each item/deck carries an `updatedAt` timestamp, and the
   newest edit wins across devices. Deletions are tracked with tombstones so
   deleting something on your phone won't get silently un-done by an older
   cached copy syncing in from your laptop.
-- A background alarm re-syncs every 10 minutes, plus immediately after
-  every save.
+- Sync failures are counted and surfaced (a warning pill in the Library, and
+  a notification if your Google session expires) instead of failing silently.
+- A background alarm re-syncs every 10 minutes, plus immediately after every
+  save. A very large first sync is split across several capped passes and
+  continues on its own until it has caught up.
 
 **Setup:** cross-device sync uses your own Google OAuth client ID (a free,
 one-time Google Cloud Console step — think of it like registering *any*
@@ -164,8 +177,11 @@ Library — a dashboard with:
   copy its reference, pin it, or delete it
 - Multi-select + bulk move/delete
 - One-click **Export** (JSON backup) and **Import** (restore/migrate)
-- **Settings**: toggle auto-organize, selection auto-save, and the save
-  toast, review the keyboard shortcuts, and manage Google Drive sync
+- **Settings**: toggle auto-organize, selection auto-save, the save toast and
+  `Space`+`K`, review the keyboard shortcuts, manage muted sites, and manage
+  Google Drive sync
+- **Diagnostics**: live index statistics and a "rebuild search index" button
+  with progress, for the rare case a result looks wrong
 
 ## Project structure
 
@@ -180,20 +196,28 @@ kipideck/
 ├── lib/
 │   ├── compat.js          Cross-browser `ext` shim (Proxy over globalThis.browser)
 │   ├── browser-polyfill.js  Vendored Mozilla webextension-polyfill
-│   ├── storage.js         browser.storage.local data layer (items, decks, settings, tombstones)
+│   ├── db.js              IndexedDB core: records, search index, dirty queue, favicons
+│   ├── storage.js         Async facade over db.js (items, decks, settings, tombstones, import/export)
+│   ├── search.js          Ranked full-text search over the persistent index
+│   ├── text.js            Tokenizer, accent folding, field weighting, snippets
+│   ├── canon.js           URL canonicalization + duplicate fingerprints
+│   ├── favicons.js        Local favicon cache (no third-party icon service)
 │   ├── classify.js        Offline heuristic classifier (deck + tag suggestions)
 │   ├── extract.js         In-page full-text extraction for search
-│   ├── search.js          Offline full-text search & ranking engine
-│   └── drive-sync.js      Google Drive app-data sync client (OAuth + merge logic)
+│   └── drive-sync.js      Sharded Google Drive sync: PKCE auth, delta uploads, merge
 ├── popup/
 │   └── popup.html/.css/.js  Toolbar popup: quick save, quick note, recent items, search
 ├── library/
-│   └── library.html/.css/.js  Full dashboard: decks, tags, search, item editor, sync UI
+│   └── library.html/.css/.js  Full dashboard: paginated grid, item editor, import preview, diagnostics, sync UI
+├── onboarding/
+│   └── onboarding.html/.css/.js  First-run disclosure: what is captured, and the toggles that gate it
 ├── icons/                 Extension icons (16/32/48/128)
 ├── docs/
 │   └── GOOGLE_SYNC_SETUP.md  Step-by-step Google Cloud Console setup for sync
-├── website/               Next.js marketing/docs site (deploy target: Vercel)
-└── dist/                  Packaged .zip of the extension (generated, git-ignored-friendly)
+├── test/                  `node --test` suite: data layer, search, canonicalization, sync, wiring
+├── .github/workflows/ci.yml  Tests on Node 20 + 22, weekly 50k-item benchmark, website build
+├── website/               Next.js marketing/docs site (deploy target: Vercel), incl. /privacy
+└── website/public/downloads/kipideck-extension.zip  Generated install package
 ```
 
 ## Run it locally
@@ -213,6 +237,35 @@ npm install
 npm run dev
 # open http://localhost:3000
 ```
+
+## Testing & CI
+
+The extension ships with zero runtime dependencies, and the tests use Node's
+built-in runner plus [`fake-indexeddb`](https://github.com/dumbmatter/fakeIndexedDB)
+— no browser, no emulator, no network:
+
+```bash
+npm install          # dev dependencies only (the test harness)
+npm test             # 180 tests: data layer, search, canonicalization, capture policy, sync, wiring
+npm run test:scale   # the 50,000-item benchmark (slow; nightly in CI)
+npm run check        # tests + rebuild the installable extension package
+```
+
+What is covered, and why each group exists:
+
+| Suite | What it pins down |
+|---|---|
+| `test/db.test.js` | The IndexedDB schema, the chunked search index, bulk writes, duplicate fingerprints, reindexing |
+| `test/storage.test.js` | Import **merges** instead of replacing, export stays valid JSON at any size, the v1→v2 migration moves everything |
+| `test/canon.test.js` | URL canonicalization and the dedupe fingerprint rules (same page from different sources = duplicate; same quote from different articles = not) |
+| `test/policy.test.js` | That the code does what the first-run disclosure *says*: nothing silent before it is accepted, `Space`+`K` off on the sites the page names, muting a site silencing both behaviours |
+| `test/sync.test.js` | PKCE sign-in, sharding, delta uploads, cross-device merge, delete propagation, legacy-blob migration, capped-pass convergence, expired sessions — run against an in-memory Drive + OAuth mock (`test/drive-mock.js`) |
+| `test/wiring.test.js` | "Would this extension actually load?" — every element id, import, `getURL()` target, manifest entry and packaged file resolves |
+| `test/scale.bench.js` | Query latency and import throughput at 20k/50k items, so a regression that only appears at scale cannot sneak in |
+
+`.github/workflows/ci.yml` runs the tests on Node 20 and 22 for every push and
+pull request, builds the website (which also packages the extension zip and
+fails if the package is incomplete), and runs the 50k-item benchmark weekly.
 
 ## Hosting & deployment
 
@@ -242,18 +295,53 @@ npm run dev
 
 ## Data & privacy
 
-By default, all data lives in `browser.storage.local` on your device only —
-nothing is sent anywhere. If you opt into sync, the only place your data
-goes is your own Google Drive's private app-data folder, authenticated
-directly between your browser and Google — Kipideck's code never sees or
-relays your credentials or data through any third-party server. Use
-**Export** in the Library any time for a JSON backup, and **Import** to
-restore it.
+By default, all data lives in **IndexedDB in your own browser profile** —
+nothing is sent anywhere, and there is no Kipideck server to send it to. If
+you opt into sync, the only place your data goes is your own Google Drive's
+private app-data folder, authenticated directly between your browser and
+Google — Kipideck's code never sees or relays your credentials or data
+through any third-party server. Use **Export** in the Library any time for a
+JSON backup, and **Import** to merge one back in (it shows you what will be
+added, updated and skipped *before* writing anything).
+
+Two things are worth calling out because they changed in v1.4:
+
+- **Nothing is captured silently until you have been told.** The first time
+  Kipideck runs it opens [`onboarding/onboarding.html`](onboarding/onboarding.html),
+  which lists exactly what it can save and what it never touches, and asks you
+  to choose the automatic behaviours (auto-saving selected text, `Space`+`K`).
+  Until you press a button there, only explicit saves work. Every automatic
+  save also shows a toast with an *Open* and a *Never here* button, and
+  individual sites can be muted from **Library → Settings**.
+- **No third-party requests for favicons.** v1.3 loaded site icons from
+  `google.com/s2/favicons`, which told Google every domain in your library.
+  Icons are now fetched from the site itself and cached locally
+  ([`lib/favicons.js`](lib/favicons.js)), with a locally drawn letter avatar as
+  the fallback.
+
+The full policy — every permission and why it is needed — lives at
+[`website/app/privacy/page.js`](website/app/privacy/page.js), published at
+<https://kipideck.vercel.app/privacy>.
 
 ## Roadmap ideas
 
-- Publish to the Chrome Web Store, Firefox Add-ons (AMO), and Edge Add-ons
+The full analysis lives in [`ideas.md`](ideas.md). Done in v1.4 (the
+"Phase 0" foundation work): the persistent search index, windowed rendering,
+sharded delta sync, merge-not-overwrite import, the local favicon cache, the
+first-run disclosure page, the published privacy policy, the test suite and CI,
+and the `Space`+`K` conflict fix.
+
+Still open:
+
+- Publish to the Chrome Web Store, Firefox Add-ons (AMO), and Edge Add-ons —
+  timed before **12 November 2026**, the anniversary of Pocket deleting all
+  user data, which is when its refugees will be looking again
+- Importers for Pocket, Instapaper, Raindrop, Chrome bookmarks and browser
+  history exports (the merge-not-overwrite import path is ready for them)
+- "Refugee" landing pages for each of those audiences
 - Package a Safari build via `xcrun safari-web-extension-converter`
 - Smart deck suggestions that learn from your manual corrections
 - Field-level (not just record-level) conflict merging for sync
-- Optional end-to-end encryption of the synced Drive file
+- Optional end-to-end encryption of the synced Drive shards
+- Chrome-only progressive enhancement via the Summarizer/Prompt APIs (desktop
+  Chrome 138+; must degrade silently everywhere else)

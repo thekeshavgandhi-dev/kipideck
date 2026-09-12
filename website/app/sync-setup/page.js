@@ -40,8 +40,10 @@ export default function SyncSetupPage() {
           <h2>How it works (the 30-second version)</h2>
           <p>
             Kipideck stores your decks in a private, hidden <strong>&quot;app data&quot;
-            folder</strong> inside <em>your own</em> Google Drive — a folder Google reserves
-            specifically for apps, which:
+            folder</strong> inside <em>your own</em> Google Drive, split across a small index
+            file plus shard files (metadata in 64 buckets, saved page text in 256) so even a
+            huge library stays well inside Drive&apos;s per-file limits. That folder is one
+            Google reserves specifically for apps, which:
           </p>
           <ul>
             <li>never appears in your normal Google Drive file list,</li>
@@ -160,18 +162,29 @@ export default function SyncSetupPage() {
               Go to <strong>Settings → Sync across devices &amp; browsers</strong>.
             </li>
             <li>
-              Paste your client ID into <strong>Google OAuth client ID</strong> →{" "}
-              <strong>Save client ID</strong>.
+              Paste your client ID into <strong>Google OAuth client ID</strong>.
             </li>
             <li>
-              Click <strong>🔐 Sign in with Google &amp; enable sync</strong>.
+              Only if you made a <strong>Web application</strong> or{" "}
+              <strong>Desktop app</strong> client: paste its secret into{" "}
+              <strong>Client secret</strong> too. &quot;Chrome App&quot; clients have no
+              secret — leave it blank.
+            </li>
+            <li>
+              Click <strong>Save credentials</strong>, then{" "}
+              <strong>🔐 Sign in with Google &amp; enable sync</strong>.
             </li>
             <li>Approve the consent screen. You&apos;re syncing! 🎉</li>
           </ol>
           <p>
-            Repeat step 5 on every other browser/device — same client ID, same Google account — and
-            they&apos;ll all merge into the same private Drive file. Newest edit always wins, and
-            deletions are never accidentally un-done by older copies.
+            Repeat this on every other browser/device — same client ID, same Google account —
+            and they&apos;ll all merge into the same set of private Drive files. Newest edit
+            always wins, deletions are never accidentally un-done by older copies, and only the
+            parts of your library that actually changed are uploaded.
+          </p>
+          <p className="muted">
+            If sign-in reports that Google did not return a refresh token, just sign in once
+            more: Google only issues one on a fresh consent screen.
           </p>
         </div>
 
@@ -195,6 +208,7 @@ export default function SyncSetupPage() {
             <a href="/">Home</a>
             <a href="/deck">Open My Deck</a>
             <a href="/#install">Install</a>
+            <a href="/privacy">Privacy</a>
           </nav>
           <p className="muted">
             Private by design — your data goes only to your own Google Drive, never to us.

@@ -308,6 +308,7 @@ export default function Home() {
             <a href="/deck">Open My Deck</a>
             <a href="/sync-setup">Sync setup guide</a>
             <a href="#install">Install</a>
+            <a href="/privacy">Privacy</a>
           </nav>
           <p className="muted">
             Save anything. It organizes itself. Private by design — your saves stay on your device

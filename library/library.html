@@ -41,14 +41,31 @@
       </button>
       <div class="sidebar-footer">
         <button id="exportBtn" class="tool-btn" title="Export everything as JSON">⬇</button>
-        <button id="importBtn" class="tool-btn" title="Import a JSON backup">⬆</button>
+        <button id="importBtn" class="tool-btn" title="Import from Pocket, Raindrop, bookmarks, or a Kipideck backup">⬆</button>
         <button id="settingsBtn" class="tool-btn" title="Settings">⚙</button>
-        <input type="file" id="importFile" accept="application/json" hidden />
+        <input
+          type="file"
+          id="importFile"
+          multiple
+          accept=".json,.csv,.tsv,.html,.htm,.txt,.md,application/json,text/csv,text/html,text/plain"
+          hidden
+        />
       </div>
     </div>
   </aside>
 
   <main class="content">
+    <div id="setupBanner" class="setup-banner hidden">
+      <div>
+        <b>Finish setting up Kipideck</b>
+        <span>
+          Kipideck can save highlighted text automatically. Nothing is captured
+          silently until you've seen what it does and chosen your settings.
+        </span>
+      </div>
+      <button id="setupBannerBtn" class="primary-btn">Open first-run setup</button>
+    </div>
+
     <header class="content-header">
       <div class="title-block">
         <h1 id="viewTitle">All items</h1>
@@ -80,6 +97,9 @@
     </div>
 
     <div id="itemsGrid" class="items-grid"></div>
+    <div id="gridSentinel" class="grid-sentinel hidden" title="Loading more…">
+      <span class="sentinel-dot"></span><span class="sentinel-dot"></span><span class="sentinel-dot"></span>
+    </div>
     <div id="emptyState" class="empty-state hidden">
       <div class="empty-emoji">📌</div>
       <h3>Nothing here yet</h3>
@@ -140,6 +160,16 @@
       <span class="switch"><input type="checkbox" id="toastToggle" /><i></i></span>
       <span class="switch-label">Show save confirmation toast</span>
     </label>
+    <label class="switch-row">
+      <span class="switch"><input type="checkbox" id="spaceKToggle" /><i></i></span>
+      <span class="switch-label">
+        <kbd>Space</kbd> then <kbd>K</kbd> quick-saves a page
+        <small class="muted">Skipped on sites where those keys do something (YouTube, Gmail, video players).</small>
+      </span>
+    </label>
+
+    <div class="section-title">Quiet sites</div>
+    <div id="mutedSites" class="muted-sites"></div>
 
     <div class="section-title">Shortcuts</div>
     <div class="shortcut-list">
@@ -169,13 +199,20 @@
       "app data" folder — invisible in your normal Drive, readable only by
       Kipideck. No account or server of ours involved.
     </p>
+    <div id="syncWarning" class="sync-warning hidden"></div>
     <div id="syncSignedOut">
       <div class="form-row">
-        <label>Google OAuth client ID</label>
-        <input id="syncClientIdInput" placeholder="xxxxx.apps.googleusercontent.com" />
+        <label for="syncClientIdInput">Google OAuth client ID</label>
+        <input id="syncClientIdInput" placeholder="xxxxx.apps.googleusercontent.com" spellcheck="false" autocomplete="off" />
       </div>
-      <p class="muted small-text">One-time setup by whoever installs Kipideck — see <code>docs/GOOGLE_SYNC_SETUP.md</code> for the 5-minute Google Cloud Console steps to get a client ID.</p>
-      <button id="syncSaveClientIdBtn" class="secondary-btn-full">Save client ID</button>
+      <div class="form-row">
+        <label for="syncClientSecretInput">Client secret <span class="muted">(only for &quot;Web application&quot; or &quot;Desktop app&quot; clients)</span></label>
+        <input id="syncClientSecretInput" type="password" placeholder="leave blank for Chrome Extension clients" spellcheck="false" autocomplete="off" />
+        <button id="syncClearSecretBtn" class="link-btn hidden" type="button">Remove saved secret</button>
+      </div>
+      <p class="muted small-text">One-time setup by whoever installs Kipideck — see <code>docs/GOOGLE_SYNC_SETUP.md</code> or the <a href="https://kipideck.vercel.app/sync-setup" target="_blank" rel="noopener">illustrated 5-minute guide</a> for the Google Cloud Console steps. Credentials stay in this browser profile; Kipideck has no server to send them to.</p>
+      <div id="syncSetupMsg" class="sync-setup-msg hidden"></div>
+      <button id="syncSaveClientIdBtn" class="secondary-btn-full">Save credentials</button>
       <button id="syncSignInBtn" class="primary-btn">🔐 Sign in with Google &amp; enable sync</button>
     </div>
     <div id="syncSignedIn" class="hidden">
@@ -188,7 +225,37 @@
     </div>
 
     <hr />
+
+    <div class="section-title">Diagnostics</div>
+    <p class="muted small-text">
+      Everything below lives on this device. Search runs against a local index
+      that is updated as you save; rebuild it if results ever look wrong.
+    </p>
+    <div id="diagBody" class="diag-body"></div>
+    <button id="reindexBtn" class="secondary-btn-full">Rebuild search index</button>
+
+    <hr />
     <button id="clearAllBtn" class="danger-btn full">Delete all items &amp; reset decks</button>
+  </div>
+</div>
+
+<!-- Export: three ways out, because "you can always leave" has to be literally true -->
+<div id="exportModalOverlay" class="modal-overlay hidden">
+  <div class="modal">
+    <button id="exportModalCancel" class="modal-close" title="Close">✕</button>
+    <div id="exportModalBody" class="import-body"></div>
+  </div>
+</div>
+
+<!-- Import: reads other people's export files, shows the arithmetic, then writes.
+     Nothing is saved until the numbers below have been shown to the user. -->
+<div id="importModalOverlay" class="modal-overlay hidden">
+  <div class="modal">
+    <button id="importModalCancel" class="modal-close" title="Cancel">✕</button>
+    <div id="importModalBody" class="import-body"></div>
+    <div class="detail-actions">
+      <button id="importModalConfirm" class="primary" disabled>Import</button>
+    </div>
   </div>
 </div>
 

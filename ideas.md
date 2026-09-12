@@ -11,6 +11,29 @@
 
 ---
 
+## ✅ Phase 0 — foundation, shipped in v1.4 (2026-09-12)
+
+Sequenced *ahead* of this list on purpose: every idea below multiplies on a data
+layer that could hold 50,000 items, and v1.3 could not. What changed, with the
+measurements that justified it:
+
+| Was | Now |
+|---|---|
+| Full scan per keystroke: **2.2 s at 500 items, 45 s at 10,000** | Persistent IndexedDB index: **369 ms per keystroke, 376 ms for a 2-word AND at 50,000 items** |
+| Whole grid re-rendered on every change | 60-item pages + `IntersectionObserver` sentinel; first paint **59 ms**, offset 10,000 **481 ms** |
+| Sync = one JSON blob of the entire library: **4 MB @500, 20 MB @1k, 219 MB @50k** vs Drive's 5 MB limit | Sharded delta sync (64 metadata + 256 content buckets, hash-gated, resumable >4 MB, 40 ops/pass): **0.03 MB per 50 changed items** |
+| OAuth implicit flow — token died hourly, error swallowed | Authorization Code + **PKCE** + refresh token, silent refresh, failures counted and surfaced |
+| `importJSON` **replaced** the library | Merge with a dry-run preview (added/updated/skipped arithmetic shown first) |
+| Favicons from `google.com/s2` — leaked every domain to Google | Local favicon cache + letter avatars (**I-04**) |
+| Silent auto-capture with no disclosure | First-run disclosure page gating all silent capture (**I-03 slice**) + per-site mute |
+| No tests, no CI | **152 tests** (`node --test`) incl. a mocked Drive/OAuth sync suite, a wiring test, and a 50k-item benchmark; GitHub Actions on Node 20 + 22 |
+| No privacy policy | <https://kipideck.vercel.app/privacy> — every permission justified |
+| `Space`+`K` fired in YouTube/Gmail text fields | Per-site opt-out + a guard list, and a visible toggle |
+
+Items below marked **v1.4 (partial)** were started here and still have work left.
+
+---
+
 ## P0 — Foundations (do first; everything else multiplies on these)
 
 - [ ] **I-01 · Publish to the Chrome Web Store + Edge Add-ons + Firefox AMO** 🔥🔥🔥🔥🔥 · Effort M
@@ -21,14 +44,17 @@
   Problem: BYO OAuth client-ID setup ≈ 0% completion by non-developers; hourly token expiry (`SESSION_EXPIRED`) (R§1.3).
   Build: ship a first-party OAuth client (free tier of Google Cloud; Drive appData scope is non-sensitive-ish) with one "Sign in with Google" button; keep BYO-client as advanced fallback; silent token refresh via short-lived re-auth or move to a tiny refresh-token-safe flow. Keep the "no Kipideck server" guarantee — tokens stay in the browser.
   Beats: Raindrop/Matter (account-locked clouds) on privacy + convenience simultaneously. Metric: % of installs with sync on.
+  **v1.4 (partial):** the *reliability* half is done — Authorization Code + PKCE, refresh tokens, silent refresh forever after, an optional client-secret field for Web/Desktop clients, and failures that are counted, shown in the Library pill and notified instead of swallowed. The *one-click* half is not: it still needs a first-party OAuth client (deliberately deferred, since it puts a Google-verified consent screen and a restricted-scope review in front of the store submission).
 - [ ] **I-03 · First-run onboarding (60 seconds to first save)** 🔥🔥🔥🔥 · Effort S
   Problem: empty library + no guidance = bounce; competitors (even bad ones) onboard (R§4.12).
   Build: welcome page on install: 1-click "save this demo page", deck tour, "import from…" shortcuts, keyboard shortcut card. Pre-seed 3 sample items (deletable) so search/decks demo themselves.
   Metric: D1 save rate, D7 retention.
-- [ ] **I-04 · Kill the small trust leaks** 🔥🔥🔥 · Effort XS–S
+  **v1.4 (partial):** `onboarding/onboarding.html` ships as the *disclosure* half — what is captured, what never is, where data lives, and the toggles that gate silent capture (nothing is captured automatically until a button is pressed there). Still to build: the demo save, deck tour, import shortcuts and pre-seeded sample items that make the first 60 seconds land.
+- [x] **I-04 · Kill the small trust leaks** 🔥🔥🔥 · Effort XS–S — **shipped v1.4**
   Problem: favicons via `google.com/s2` (tracks every domain, fails offline); junk auto-tags (`domain.split('.')[0]` → tags like "the"); no duplicate detection (R§1.3).
   Build: local favicon cache (fetch once, store blob, fallback to letter-icon); smarter tag hygiene (deny-list, max 5, de-dupe vs title words); "already saved" detection with "open existing" prompt.
   Beats: privacy story becomes airtight — required for the §5.1 positioning.
+  ✅ v1.4: `lib/favicons.js` (IndexedDB icon cache + locally drawn letter avatars, zero third-party requests); `lib/canon.js` `siteLabel()` + classifier hygiene (compound-suffix aware, junk deny-list, ≤5 suggestions, deduped against title words, user tags always win); duplicate fingerprints + `findDuplicate` with an "Already in your Kipideck — Open" toast (pages/links/images at any age, selections inside a 60 s window). Covered by `test/canon.test.js` + `test/classify.test.js`.
 
 ## P1 — Capture the refugee wave (highest ROI growth, do within weeks)
 
@@ -82,7 +108,7 @@
   Problem: current classifier is ~13 English regexes; mymind/Recall prove auto-tag quality is the magic (R§1.3).
   Build: layered: keep instant regex → add on-device keyword extraction (TF-IDF/TextRank over saved text) → optional user-trained rules ("always file `*.edu` → Research"); learn from manual deck moves (per-domain memory). Show "why filed here" with one-click correction that teaches.
   Beats: Raindrop's paywalled AI tagging, mymind's opaque AI, Instapaper's nothing.
-- [ ] **I-16 · Auto-dedupe + "related items"** 🔥🔥🔥 · Effort S–M
+- [ ] **I-16 · Auto-dedupe + "related items"** 🔥🔥🔥 · Effort S–M — **auto-dedupe shipped v1.4; "related" still open**
   Problem: re-saves and URL variants pile up; nobody connects related saves except expensive graphs (Recall knowledge graph) (R§3.3).
   Build: canonical-URL + title-fingerprint dedupe at save ("you saved this 3mo ago — open it?"); related-items rail via shared tags + embedding similarity.
   Beats: keeps libraries clean automatically — a quiet, loved moat.
@@ -112,7 +138,7 @@
 
 ## P5 — Moat: sync v2, sharing, integrations
 
-- [ ] **I-22 · Sync v2: delta sync + scale + E2E encryption** 🔥🔥🔥🔥 · Effort L
+- [ ] **I-22 · Sync v2: delta sync + scale + E2E encryption** 🔥🔥🔥🔥 · Effort L — **delta + scale shipped v1.4; E2E still open**
   Problem: single-JSON-snapshot upload won't scale to 10k items; record-level merge; no encryption (R§1.3).
   Build: chunked/delta uploads (only changed records), pagination + lazy content fetch, field-level merge for notes/tags/pins, optional E2E encryption (passphrase-derived key, zero-knowledge — Drive sees ciphertext). Keep tombstone discipline.
   Beats: privacy absolutists (Wallabag/Karakeep self-hosters) get their guarantees with zero setup.

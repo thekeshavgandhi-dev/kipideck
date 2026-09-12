@@ -227,3 +227,12 @@ body {
   font-weight: 700;
 }
 .footer a:hover { text-decoration: underline; }
+
+/* Phase 0: first-run setup link (silent capture is disclosed before it happens) */
+.setup-row { margin-top: 4px; }
+.setup-row a {
+  color: #5a3fe0;
+  font-weight: 600;
+  text-decoration: none;
+}
+.setup-row a:hover { text-decoration: underline; }
