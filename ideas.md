@@ -94,22 +94,25 @@ Items below marked **v1.4 (partial)** were started here and still have work left
 
 ## P2 — Win "consume" (reader, highlights, audio, recall)
 
-- [ ] **I-08 · Distraction-free Reader View** 🔥🔥🔥🔥🔥 · Effort M
+- [x] **I-08 · Distraction-free Reader View** 🔥🔥🔥🔥🔥 · Effort M
   Problem: Kipideck saves full text but never renders it cleanly; every read-it-later rival leads with a reader (R§1.3).
   Build: Mozilla Readability (vendored, offline) → clean article render inside Library; fonts, themes, line-width; saves scroll position; "parsed from your saved copy" (works offline, paywall-safe since captured post-render).
   Beats: Instapaper's calm + Raindrop's reader, free, offline. Metric: % of items opened in reader.
+  ✅ v1.8.0: reader renders the **saved copy** ("parsed from what you stored" — offline, paywall-safe). `lib/reader.js` splits text into paragraphs; the overlay sets type (serif/sans), three themes, font size and line width, and saves scroll position per item (kv `read:<id>`, debounced). "~N min" rides along in the card and detail meta. Covered by `test/reader.test.js` + wiring. Still open: highlighting *inside* reader (that's I-09).
 - [ ] **I-09 · In-page highlighter + notes that persist** 🔥🔥🔥🔥 · Effort M–L
   Problem: Diigo/Glasp/Weava/Hypothesis own annotation; Kipideck turns selections into detached items (R§3.4).
   Build: select → highlight (4 colors) + optional note, stored against URL + text quote (fuzzy re-attach like Hypothesis); highlights searchable, listed per-item, exportable. Reliability first — Weava's vanishing highlights are the cautionary tale; store locally, sync via existing tombstone-safe merge.
   Beats: Weava (reliability), Glasp (privacy + free private highlights), Diigo (modern UX).
-- [ ] **I-10 · Listen to your saves (TTS)** 🔥🔥🔥🔥 · Effort S–M
+- [x] **I-10 · Listen to your saves (TTS)** 🔥🔥🔥🔥 · Effort S–M
   Problem: commuters' top ask; Instapaper TTS crashes, Matter playback wobbles (R§4.15).
   Build: free tier = offline OS voices (`speechSynthesis`, $0 cost); queue + playback position saved; optional upgrade path to premium voices later. Works from Reader View + popup.
   Beats: good-enough audio free vs everyone's paywalled/crashy audio.
-- [ ] **I-11 · Resurfacing: daily digest + "stumble" + smart reminders** 🔥🔥🔥🔥🔥 · Effort M
+  ✅ v1.8.0: read-aloud lives in the reader. Free tier = OS voices via `speechSynthesis` (zero cost, zero network); `speechQueue()` walks paragraphs sentence by sentence, the spoken sentence gets a `.tts-now` highlight, playback rate is a selector, position resumes from the reader scroll state. Matter charges $60/yr for HD voices; ours never leaves the device.
+- [x] **I-11 · Resurfacing: daily digest + "stumble" + smart reminders** — **Daily 5 core shipped v1.8.0** 🔥🔥🔥🔥🔥 · Effort M
   Problem: ~70% of saves never reopened; guilt → avoidance → churn; only $120/yr Readwise addresses recall (R§4.3/4.14).
   Build: "Kipi Daily 5" (new-tab or notification digest: 2 unread + 2 forgotten gems + 1 random — spaced-repetition-lite); "🔀 Surprise me" button; per-deck "going stale" nudges; reading streaks (opt-in). All local, no account.
   Beats: the graveyard problem nobody free solves — this is the retention engine.
+  ✅ v1.8.0: **Kipi Daily 5** — `lib/digest.js` picks 2 unread + 1 forgotten gem (oldest unread past 30 days) + 1 surprise + a filler, seeded by the day so the popup, the library "Daily" view and the browser notification all show the *same five*. 🔀 rerolls only the surprise slot. A background alarm posts one quiet notification per day (click → `library#daily=1`); opt-out in Settings, 0↔09:00 local. Honest shrink: fewer than 5 candidates → fewer shown, never padded. Covered by `test/digest.test.js` (incl. Storage integration). Still open: streaks, per-deck stale nudges, new-tab digest page.
 - [x] **I-12 · Save-state workflow (Unread → Reading → Done + Archive)** 🔥🔥🔥 · Effort S — **core shipped v1.6.0**
   Problem: piles grow unbounded; Burn 451's forced triage and Readwise's filters prove workflow beats buckets (R§3.1).
   Build: per-item status + Library filters; optional "triage mode" (swipe/keyboard through Inbox); auto-archive rules ("mark done after opening", "archive shopping after 30d").
@@ -130,10 +133,12 @@ Items below marked **v1.4 (partial)** were started here and still have work left
   Problem: current classifier is ~13 English regexes; mymind/Recall prove auto-tag quality is the magic (R§1.3).
   Build: layered: keep instant regex → add on-device keyword extraction (TF-IDF/TextRank over saved text) → optional user-trained rules ("always file `*.edu` → Research"); learn from manual deck moves (per-domain memory). Show "why filed here" with one-click correction that teaches.
   Beats: Raindrop's paywalled AI tagging, mymind's opaque AI, Instapaper's nothing.
-- [ ] **I-16 · Auto-dedupe + "related items"** 🔥🔥🔥 · Effort S–M — **auto-dedupe shipped v1.4; "related" still open**
+  ✅ v1.8.0 (layer 2 of 3): `suggestKeywords()` — TF-IDF-flavoured extraction over the saved text, appended *after* the regex layer at capture, existing tags never overwritten, max 5. Covered by `test/classify.test.js` (+6). Still open: per-domain deck memory, user-trained rules, on-device model for Firefox.
+- [x] **I-16 · Auto-dedupe + "related items"** — **both halves shipped (dedupe v1.4, rail v1.8)** 🔥🔥🔥 · Effort S–M — **auto-dedupe shipped v1.4; "related" still open**
   Problem: re-saves and URL variants pile up; nobody connects related saves except expensive graphs (Recall knowledge graph) (R§3.3).
   Build: canonical-URL + title-fingerprint dedupe at save ("you saved this 3mo ago — open it?"); related-items rail via shared tags + embedding similarity.
   Beats: keeps libraries clean automatically — a quiet, loved moat.
+  ✅ v1.8.0: "You also saved" rail in the detail modal — `lib/related.js` scores shared tags ×4, same domain ×2, same deck ×1.5, title-overlap ×2 over a *bounded candidate pool* (never a full-library scan; 50k items stay instant), ties break newest-first, reasons shown per chip. Embedding-based similarity is deliberately left to I-14 rather than half-done here.
 
 ## P4 — Capture breadth (mobile, formats, snapshots, tabs)
 
@@ -220,6 +225,33 @@ Principles: core capture/organize/search/sync stays **free forever**; charge onl
 | 4 · Free AI | 10–16 | I-13 summaries, I-14 semantic search, I-15 tagging v2, I-16 dedupe | the $10/mo-killer story; press + PH relaunch |
 | 5 · Everywhere | 14–24 | I-17 mobile PWA, I-18 snapshots, I-26 Safari, I-20 formats (staged) | platform parity; researcher unlock |
 | 6 · Moat & money | 20+ | I-22 sync v2/E2EE, I-23 sharing, I-24 exports, M-01/M-04 | virality + revenue |
+
+## 2026-09-12 competitor scan — ideas added in the v1.8 cycle
+
+Research pass over the 2026 read-later market (aitrove / Fabric / Beemind roundups, Karakeep v0.29–0.33 release notes, Chrome built-in AI announcements, Obsidian Web Clipper 1.5). Ammo worth putting on the site: **Raindrop Pro now paywalls full-text search and annotations**; Readwise Reader is $9.99/mo with no free plan; Instapaper's only moat is Kobo sync; **Firefox deleted Pocket** and left a built-in "save for later" vacuum; mymind's missing export is its most-hated flaw.
+
+- [ ] **I-33 · Highlights page with per-highlight notes** 🔥🔥🔥🔥 · Effort M (ride-along of I-09)
+  Obsidian's free Clipper shipped a dedicated browse/search page for highlights (1.5) and Karakeep added notes + search to highlights. Lesson: highlights without a *home* are dead weight — build the page with I-09, don't bolt it on later.
+  Beats: Readwise charges $120/yr for exactly this page.
+- [ ] **I-34 · EPUB export of saved copies (Kobo/Kindle drop-in)** 🔥🔥🔥 · Effort M
+  Instapaper's remaining moat is e-reader sync; Karakeep added yt-dlp archiving and OCR — format breadth is where the credible free tools compete now. Kipideck already *has* the clean text (reader pipeline); bundling saved copies into an EPUB is a local, zero-server one-shot. Pairs with I-24 export targets.
+  Beats: Instapaper's lock-in (their Kobo sync needs their cloud), Matter (no EPUB path).
+- [ ] **I-35 · BYO-LLM Q&A over your library ("Ask Kipi")** 🔥🔥🔥🔥 · Effort M
+  Fabric ($5/mo), Trove ($2.99/mo "answers questions about your saves"), BeeMind (BYO API key) — Q&A is the paid feature everyone launches with; BeeMind proves the user-paid-key model is acceptable. Build: existing search + saved text → context pack → user's own key (Gemini/OpenRouter). Never ship a server-side inference bill; consent banner per query.
+  Beats: Readwise Ghostreader at $0 marginal cost to us.
+- [ ] **I-36 · Tag provenance + tag-sprawl control** 🔥🔥🔥 · Effort S–M
+  Karakeep (the "most credible Pocket successor", 24k+ stars) ships `attachBy: human|ai` provenance, per-user auto-tag toggles, and — the clever bit — proposes *existing* similar tags before minting new ones. Our regex + suggestKeywords layers should record who applied a tag so "show only my tags" and one-click "keep/discard suggestions" work later.
+  Beats: mymind's opaque AI tagging users can't audit or undo.
+- [ ] **I-37 · Local rules engine v2 (conditions → actions on save)** 🔥🔥🔥 · Effort M
+  Karakeep's rule-based management engine is its power-user differentiator; our deck-rules are one regex deep. Build: declarative local rules (domain/path/title match → deck, tags, status, mute favicon), stored in the sync-safe kv namespace, exportable in the JSON bundle. Extends the "auto-archive after 30d" stub left open in I-12.
+  Beats: every rival whose automation is server-side.
+- [ ] **I-38 · Clipboard/share-target dedupe check ("already saved?" on mobile)** 🔥🔥 · Effort S
+  Karakeep added a `checkUrl` REST endpoint + one-tap clipboard save on mobile because the share sheet is where saves actually happen. We own `findDuplicate` already — the mobile PWA (I-17) share target should run it *before* capture and toast "you saved this 3mo ago". Cheap; kills the #1 PWA complaint (duplicate piles).
+- [ ] **I-39 · Chrome built-in AI tier (Summarizer/Translator on-device)** 🔥🔥🔥🔥 · Effort M (I-13 delivery vehicle)
+  Chrome 138+ ships on-device Gemini Nano Summarizer/Translator APIs (widening through 2026); Geminify already tiers "built-in AI on-device" + "BYO Gemini/OpenRouter key" — a proven pattern to copy. And a large cohort *wants* AI off: every surface is an opt-in with a visible "on-device, never uploaded" badge, matching the local-first story.
+  Beats: paywalled summaries everywhere; no cloud bill from us, ever.
+
+---
 
 ## Kill list — what NOT to build
 

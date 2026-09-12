@@ -9,12 +9,16 @@ import { Storage } from "../lib/storage.js";
 import { searchItems } from "../lib/search.js";
 import { faviconMap, iconFromMap } from "../lib/favicons.js";
 import { isSavableTabUrl } from "../lib/sessions.js";
+import { isSafeWebUrl } from "../lib/canon.js";
+import { slotLabel } from "../lib/digest.js";
 
 const els = {
   savePageBtn: document.getElementById("savePageBtn"),
   savePageLabel: document.getElementById("savePageLabel"),
   saveTabsBtn: document.getElementById("saveTabsBtn"),
   tabsDeckSelect: document.getElementById("tabsDeckSelect"),
+  dailyBtn: document.getElementById("dailyBtn"),
+  dailyOffBtn: document.getElementById("dailyOffBtn"),
   noteInput: document.getElementById("noteInput"),
   searchRow: document.getElementById("searchRow"),
   searchInput: document.getElementById("searchInput"),
@@ -170,6 +174,13 @@ function deckById(id) {
 
 // ---- Render ----------------------------------------------------------------
 function render() {
+  // Any re-render (search, live save, refresh) leaves daily mode — daily is a
+  // view you step into, not one that fights the search box for the list.
+  if (dailyMode) {
+    dailyMode = false;
+    els.dailyBtn.hidden = false;
+    els.dailyOffBtn.hidden = true;
+  }
   const seq = ++searchSeq;
   const q = state.query.trim();
 
@@ -226,11 +237,82 @@ function paint(q) {
     `;
     card.addEventListener("click", () => {
       const url = it.sourceUrl || it.url;
-      if (url) ext.tabs.create({ url });
+      if (url && isSafeWebUrl(url)) ext.tabs.create({ url });
     });
     els.itemsList.appendChild(card);
   }
 }
+
+// ---- Daily 5 ---------------------------------------------------------------
+// Kipi Daily 5 (ideas.md I-11) in the popup: the same five the notification
+// offered and the Library shows (all three recompute the same day-seeded pick
+// — see lib/digest.js). The card row keeps the recent list's geometry so the
+// popup never feels like two different products.
+let dailyMode = false;
+
+function dailyCard(pick) {
+  const it = pick.item;
+  const card = document.createElement("div");
+  card.className = "item-card daily-card";
+  card.innerHTML = `
+    <div class="item-thumb">${typeEmoji(it.type)}</div>
+    <div class="item-body">
+      <div class="item-title">${escapeHtml(it.title || it.url || "Untitled")}</div>
+      <div class="item-meta">
+        <span class="daily-slot">${slotLabel(pick.slot)}</span>
+        <span>·</span>
+        <span>${timeAgo(it.createdAt)}</span>
+      </div>
+    </div>
+  `;
+  card.addEventListener("click", () => {
+    const url = it.sourceUrl || it.url;
+    if (url && isSafeWebUrl(url)) ext.tabs.create({ url });
+    else ext.tabs.create({ url: ext.runtime.getURL("library/library.html") + `#item=${it.id}` });
+  });
+  return card;
+}
+
+async function showDaily() {
+  dailyMode = true;
+  els.dailyBtn.hidden = true;
+  els.dailyOffBtn.hidden = false;
+  els.itemsList.innerHTML = "";
+  const loading = document.createElement("p");
+  loading.className = "empty-sub";
+  loading.textContent = "Choosing today's five…";
+  els.itemsList.appendChild(loading);
+  try {
+    const { picks } = await Storage.dailyFive({ now: new Date() });
+    if (!dailyMode) return; // "Recent" was clicked while this was in flight
+    els.itemsList.innerHTML = "";
+    if (!picks.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty-sub";
+      empty.textContent = "Nothing to surface yet — save a page first, and today's five starts with it.";
+      els.itemsList.appendChild(empty);
+      return;
+    }
+    for (const pick of picks) els.itemsList.appendChild(dailyCard(pick));
+  } catch {
+    if (!dailyMode) return;
+    els.itemsList.innerHTML = "";
+    const err = document.createElement("p");
+    err.className = "empty-sub";
+    err.textContent = "Could not load today's picks — try the Library.";
+    els.itemsList.appendChild(err);
+  }
+}
+
+function hideDaily() {
+  dailyMode = false;
+  els.dailyBtn.hidden = false;
+  els.dailyOffBtn.hidden = true;
+  render();
+}
+
+els.dailyBtn.addEventListener("click", showDaily);
+els.dailyOffBtn.addEventListener("click", hideDaily);
 
 async function refresh() {
   const [counts, decks, icons, settings, tabCount] = await Promise.all([

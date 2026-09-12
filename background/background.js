@@ -18,13 +18,14 @@
 //      stops working is worse than one that tells you it stopped
 
 import { ext } from "../lib/compat.js";
-import { Storage } from "../lib/storage.js";
+import { Storage, db } from "../lib/storage.js";
 import { classify, excerptFromText } from "../lib/classify.js";
 import { extractPageText } from "../lib/extract.js";
-import { hostOf } from "../lib/canon.js";
+import { hostOf, safeWebUrl, isSafeImageUrl } from "../lib/canon.js";
 import { capturePolicyFor } from "../lib/policy.js";
 import { cacheFaviconFor } from "../lib/favicons.js";
 import { buildSessionItem } from "../lib/sessions.js";
+import { dayKey, digestSummaryLine } from "../lib/digest.js";
 import * as DriveSync from "../lib/drive-sync.js";
 
 const MENU = {
@@ -37,6 +38,8 @@ const MENU = {
 const SYNC_ALARM = "kipi-periodic-sync";
 /** One-shot follow-up alarm: a sync pass is capped, so big libraries need several. */
 const SYNC_CONTINUE_ALARM = "kipi-sync-continue";
+/** Hourly heartbeat behind the Kipi Daily 5 notification (fires ≤ once/day). */
+const DAILY_ALARM = "kipi-daily-digest";
 /** Re-save of the very same selected text within this window is a double-save. */
 const SELECTION_DEDUPE_WINDOW_MS = 60 * 1000;
 
@@ -64,8 +67,37 @@ ext.runtime.onStartup.addListener(async () => {
 function trySchedulePeriodicSync() {
   try {
     ext.alarms.create(SYNC_ALARM, { periodInMinutes: 10 });
+    // Kipi Daily 5 (I-11): an hourly heartbeat that fires AT MOST once a day.
+    // An hourly alarm is the store-accepted granularity (30 min floor in MV3);
+    // the hour check + day stamp in IndexedDB, not the alarm, decides delivery.
+    ext.alarms.create(DAILY_ALARM, { periodInMinutes: 60 });
   } catch {
     /* alarms permission may be unavailable in some contexts; sync still works on-demand */
+  }
+}
+
+/**
+ * The daily digest, if it is due: the user opted in (dailyDigestHour 1–23),
+ * local time has passed that hour today, and today has not fired yet. All the
+ * picking happens in Storage.dailyFive — bounded index pages, never a scan —
+ * and the same function in the Library will show the same five when opened.
+ */
+async function maybeSendDailyDigest() {
+  try {
+    const settings = await Storage.getSettings();
+    const hour = Number(settings.dailyDigestHour) || 0;
+    if (!hour) return false;
+    const now = new Date();
+    if (now.getHours() < hour) return false;
+    const today = dayKey(now);
+    if ((await db.kvGet("digest:lastDay", null)) === today) return false;
+    const { picks } = await Storage.dailyFive({ now });
+    if (!picks.length) return false; // an empty library gets no nag — the digest never opens with "you have nothing"
+    await db.kvSet("digest:lastDay", today);
+    await notify("Kipi Daily 5", `${digestSummaryLine(picks)} — waiting in your library`, "kipi_daily", { force: true });
+    return true;
+  } catch {
+    return false; // a failed digest must never surface as an error or break anything else
   }
 }
 
@@ -95,6 +127,10 @@ async function runSyncPass() {
 
 if (ext.alarms?.onAlarm) {
   ext.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name === DAILY_ALARM) {
+      await maybeSendDailyDigest();
+      return;
+    }
     if (alarm.name !== SYNC_ALARM && alarm.name !== SYNC_CONTINUE_ALARM) return;
     const signedIn = await DriveSync.isSignedIn();
     if (!signedIn) return;
@@ -204,9 +240,12 @@ async function getFullPageText(tabId) {
   }
 }
 
-async function notify(title, message, id) {
+async function notify(title, message, id, { force = false } = {}) {
   const settings = await Storage.getSettings();
-  if (!settings.showToast) return;
+  // "Show toasts" is the global mute for save confirmations. A digest or a
+  // sync-nudge notification is a different promise the user made themselves
+  // (they configured it), so it is `force`d past the save-toast switch.
+  if (!settings.showToast && !force) return;
   const options = {
     type: "basic",
     iconUrl: ext.runtime.getURL("icons/icon128.png"),
@@ -224,11 +263,14 @@ async function notify(title, message, id) {
   }
 }
 
-// Clicking the sync nudge opens Settings → Sync straight away.
+// Notification clicks are shortcuts to the exact screen they refer to.
 if (ext.notifications?.onClicked) {
   ext.notifications.onClicked.addListener((id) => {
     if (id === "kipi_sync_nudge") {
       ext.tabs.create({ url: ext.runtime.getURL("library/library.html#settings=sync") });
+      ext.notifications.clear(id).catch(() => {});
+    } else if (id === "kipi_daily") {
+      ext.tabs.create({ url: ext.runtime.getURL("library/library.html#daily=1") });
       ext.notifications.clear(id).catch(() => {});
     }
   });
@@ -284,9 +326,18 @@ async function captureAndSave({ type, tab, info }) {
   const pageUrl = info?.pageUrl || tab?.url || meta.url || "";
   const domain = hostOf(pageUrl);
 
+  // A malicious page can dangle a fake link (`<a href="javascript:…">` and
+  // friends) to lure a right-click "Save to Kipi". Anything that is not an
+  // http(s) target is therefore not saved AS a link — the save falls back to
+  // the page itself, which is the only thing the user meant to keep. (The
+  // write layer re-checks every field; this keeps the item useful, not just
+  // harmless — see lib/canon.js isSafeWebUrl and db.js sanitizeUrls.)
+  const linkTarget = type === "link" ? safeWebUrl(info?.linkUrl) : "";
+  const mediaTarget = type === "image" || type === "video" ? safeWebUrl(info?.srcUrl) : "";
+  if (type === "link" && !linkTarget) type = "page";
   const targetUrl =
-    type === "link" ? info?.linkUrl || pageUrl
-    : type === "image" || type === "video" ? info?.srcUrl || pageUrl
+    type === "link" ? linkTarget || pageUrl
+    : type === "image" || type === "video" ? mediaTarget || pageUrl
     : pageUrl;
   const text = type === "selection" ? info?.selectionText || meta.selectionText || "" : "";
 
@@ -323,20 +374,24 @@ async function captureAndSave({ type, tab, info }) {
     item.excerpt = excerptFromText(text, 400);
     item.title = excerptFromText(text, 80) || item.title;
   } else if (type === "link") {
-    item.url = info.linkUrl;
+    // linkTarget, never info.linkUrl: this is the branch the fake-link lure
+    // attacks, and the URL saved is the only one the Library will later link to.
+    item.url = linkTarget;
     item.sourceUrl = pageUrl;
-    item.domain = hostOf(info.linkUrl);
-    item.title = info.linkUrl;
+    item.domain = hostOf(linkTarget) || domain;
+    item.title = linkTarget;
     item.reference = `Found on: ${meta.title || pageUrl}`;
   } else if (type === "image") {
-    item.image = info.srcUrl;
-    item.url = info.srcUrl;
+    // The clickable url is http(s)-only; the <img> itself may also be a local
+    // data:image URI (inert where it renders), which db.sanitizeUrls allows.
+    item.image = isSafeImageUrl(info.srcUrl) ? String(info.srcUrl).trim() : "";
+    item.url = mediaTarget;
     item.sourceUrl = pageUrl;
-    item.domain = hostOf(info.srcUrl) || domain;
-    item.title = meta.title ? `Image from ${meta.title}` : info.srcUrl;
+    item.domain = hostOf(mediaTarget) || domain;
+    item.title = meta.title ? `Image from ${meta.title}` : mediaTarget || pageUrl;
     item.reference = `Found on: ${meta.title || pageUrl} (${pageUrl})`;
   } else if (type === "video") {
-    item.url = info.srcUrl || pageUrl;
+    item.url = mediaTarget || pageUrl;
     item.sourceUrl = pageUrl;
     item.title = meta.title ? `Video from ${meta.title}` : pageUrl;
     item.reference = `Found on: ${meta.title || pageUrl} (${pageUrl})`;

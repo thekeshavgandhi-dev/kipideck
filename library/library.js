@@ -21,6 +21,9 @@ import * as Exporters from "../lib/exporters.js";
 import { expandZip, isZipName } from "../lib/unzip.js";
 import { STATUSES, STATUS_META, statusOf } from "../lib/status.js";
 import { sessionTabs, sessionAsUrlList } from "../lib/sessions.js";
+import { isSafeWebUrl } from "../lib/canon.js";
+import { slotLabel } from "../lib/digest.js";
+import { toParagraphs, readingMinutes, speechQueue, scrollProgress } from "../lib/reader.js";
 
 const PAGE_SIZE = 60;
 const PINNED_FIRST_CAP = 200;
@@ -62,6 +65,27 @@ const els = {
   sortSelect: el("sortSelect"),
   itemsGrid: el("itemsGrid"),
   gridSentinel: el("gridSentinel"),
+  dailyToolbar: el("dailyToolbar"),
+  dailyBlurb: el("dailyBlurb"),
+  dailyRerollBtn: el("dailyRerollBtn"),
+  dailyNotifyBtn: el("dailyNotifyBtn"),
+  readerOverlay: el("readerOverlay"),
+  readerShell: el("readerShell"),
+  readerBack: el("readerBack"),
+  readerPage: el("readerPage"),
+  readerBody: el("readerBody"),
+  readerTitle: el("readerTitle"),
+  readerSub: el("readerSub"),
+  readerWhen: el("readerWhen"),
+  readerEta: el("readerEta"),
+  readerFontMinus: el("readerFontMinus"),
+  readerFontPlus: el("readerFontPlus"),
+  readerTheme: el("readerTheme"),
+  readerListen: el("readerListen"),
+  readerStop: el("readerStop"),
+  readerResume: el("readerResume"),
+  readerSource: el("readerSource"),
+  readerProgressFill: el("readerProgressFill"),
   emptyState: el("emptyState"),
   setupBanner: el("setupBanner"),
   setupBannerBtn: el("setupBannerBtn"),
@@ -101,6 +125,7 @@ const els = {
   toastToggle: el("toastToggle"),
   spaceKToggle: el("spaceKToggle"),
   autoDoneToggle: el("autoDoneToggle"),
+  dailyDigestSelect: el("dailyDigestSelect"),
   mutedSites: el("mutedSites"),
   diagBody: el("diagBody"),
   reindexBtn: el("reindexBtn"),
@@ -143,6 +168,13 @@ function timeAgo(ts) {
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+/** Gate for every click that leaves the extension: anchors, window.open and
+ * tabs.create only ever see http(s) URLs. New writes are already sanitized in
+ * `db.writeItem` — but records saved by an older version still sit in the DB,
+ * so the render path checks too (defense in depth). */
+function openableUrl(raw) {
+  return isSafeWebUrl(raw) ? String(raw).trim() : "";
+}
 function deckById(id) {
   return state.decks.find((d) => d.id === id);
 }
@@ -157,7 +189,8 @@ function hexToRgba(hex, a) {
 /** The deck/tag/pinned scope the current view implies. */
 function scope() {
   return {
-    deckId: state.view !== "all" && state.view !== "pinned" ? state.view : null,
+    // "daily" is a curated view, not a deck — it must never reach the deck filter.
+    deckId: state.view !== "all" && state.view !== "pinned" && state.view !== "daily" ? state.view : null,
     tag: state.activeTag,
     pinned: state.view === "pinned",
     status: state.activeStatus,
@@ -255,10 +288,16 @@ function updateActiveNav() {
   const target = document.querySelector(`.nav-item[data-deck="${state.view}"]`);
   if (target) target.classList.add("active");
   els.viewTitle.textContent =
-    state.view === "all" ? "All items" : state.view === "pinned" ? "Pinned" : deckById(state.view)?.name || "Items";
+    state.view === "all"
+      ? "All items"
+      : state.view === "pinned"
+      ? "Pinned"
+      : state.view === "daily"
+      ? "Daily 5"
+      : deckById(state.view)?.name || "Items";
 }
 
-document.querySelectorAll(".nav-item[data-deck='all'], .nav-item[data-deck='pinned']").forEach((n) => {
+document.querySelectorAll(".nav-item[data-deck='all'], .nav-item[data-deck='pinned'], .nav-item[data-deck='daily']").forEach((n) => {
   n.addEventListener("click", () => {
     state.view = n.dataset.deck;
     state.activeTag = null;
@@ -312,6 +351,12 @@ async function renderGrid({ reset = false } = {}) {
     els.itemsGrid.innerHTML = "";
     updateActiveNav();
   }
+  els.dailyToolbar.classList.toggle("hidden", state.view !== "daily");
+  if (state.view === "daily") {
+    await renderDailyView();
+    return;
+  }
+
   if (state.loading || state.exhausted) return;
   state.loading = true;
 
@@ -358,9 +403,289 @@ async function renderGrid({ reset = false } = {}) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Daily 5 (ideas.md I-11) — the anti-graveyard view
+// ---------------------------------------------------------------------------
+// Five cards instead of the grid: two oldest unread, two forgotten gems, one
+// seeded random. The five are the SAME in popup, library and notification —
+// deterministic per local day (lib/digest.js) — and "surprise me" re-rolls
+// only the random slot. Storage.dailyFive keeps the promise the whole library
+// lives by: bounded index pages, no full scan, even at 50k items.
+
+let dailySalt = ""; // reset every visit; the 🔀 button spins a fresh one
+
+async function renderDailyView() {
+  els.itemsGrid.innerHTML = "";
+  els.gridSentinel.classList.add("hidden");
+  state.total = 0;
+  state.rendered = 0;
+  state.exhausted = true;
+  els.dailyNotifyBtn.textContent = state.settings.dailyDigestHour
+    ? `🔔 On — every day at ${String(state.settings.dailyDigestHour).padStart(2, "0")}:00`
+    : "🔔 Offer a daily notification";
+  try {
+    const { picks } = await Storage.dailyFive({ now: new Date(), salt: dailySalt });
+    if (state.view !== "daily") return; // the user left the view mid-fetch
+    for (const pick of picks) {
+      const card = cardFor(pick.item);
+      const chip = document.createElement("div");
+      chip.className = "daily-slot-row";
+      chip.innerHTML = `<span class="daily-slot">${slotLabel(pick.slot)}</span>`;
+      const info = card.querySelector(".item-info");
+      if (info) info.appendChild(chip);
+      els.itemsGrid.appendChild(card);
+    }
+    state.total = state.rendered = picks.length;
+    if (!picks.length) {
+      els.emptyState.classList.remove("hidden");
+      els.viewSub.textContent = "Nothing to surface yet — save a page and today's five starts with it.";
+    } else {
+      els.emptyState.classList.add("hidden");
+      els.viewSub.textContent =
+        `Two oldest unread · two forgotten gems · one random — from ${state.counts.total.toLocaleString()} items, chosen by today's date`;
+    }
+  } catch {
+    els.viewSub.textContent = "Could not load today's picks.";
+  }
+}
+
+if (els.dailyRerollBtn) {
+  els.dailyRerollBtn.addEventListener("click", async () => {
+    dailySalt = `${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
+    els.dailyRerollBtn.textContent = "🔀 Rolling…";
+    await renderDailyView();
+    els.dailyRerollBtn.textContent = "🔀 Surprise me";
+  });
+}
+
+if (els.dailyNotifyBtn) {
+  els.dailyNotifyBtn.addEventListener("click", async () => {
+    const on = Number(state.settings.dailyDigestHour) || 0;
+    // A click means "yes, do that" — default to the gentle 09:00; changing the
+    // exact hour (or turning it off) is the Settings select's job.
+    await Storage.updateSettings({ dailyDigestHour: on ? 0 : 9 });
+    state.settings = await Storage.getSettings();
+    els.dailyNotifyBtn.textContent = state.settings.dailyDigestHour
+      ? `🔔 On — every day at ${String(state.settings.dailyDigestHour).padStart(2, "0")}:00`
+      : "🔔 Offer a daily notification (off)";
+    ext.runtime.sendMessage({ type: "KIPI_SETTINGS_CHANGED", settings: state.settings }).catch(() => {});
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Reader (I-08) + Listen (I-10) — your saved copy, set like a page
+// ---------------------------------------------------------------------------
+// What the reader IS: the text Kipideck already captured (lib/extract.js at
+// save time), re-paragraphed by lib/reader.js and typeset with size, tone and
+// reading-aloud controls. No re-fetch, no re-parse of the live page, no
+// network, no reader-mode extension needed. What it is NOT (yet): a live-page
+// reader on arbitrary sites, and Readability-quality markup for HTML imports —
+// both stay open in ideas.md; the honest button label is "Read your copy".
+
+const READER_FONTS = [0.92, 1.05, 1.2, 1.35]; // rem, via --reader-fs
+const READER_THEMES = ["paper", "sepia", "night"];
+const reader = {
+  item: null,
+  paras: [],
+  queue: [], // speech chunks from lib/reader.js
+  chunk: 0,
+  speaking: false,
+  progress: 0,
+  saveTimer: null,
+};
+
+function applyReaderPrefs() {
+  const scale = Number(state.settings.readerFontScale) || 1;
+  els.readerShell.style.setProperty("--reader-fs", `${(1.05 * scale).toFixed(3)}rem`);
+  els.readerShell.classList.remove("theme-sepia", "theme-night");
+  if (state.settings.readerTheme === "sepia") els.readerShell.classList.add("theme-sepia");
+  if (state.settings.readerTheme === "night") els.readerShell.classList.add("theme-night");
+}
+
+function stopReaderSpeech() {
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  reader.speaking = false;
+  reader.chunk = 0;
+  els.readerStop.hidden = true;
+  els.readerListen.hidden = !("speechSynthesis" in window);
+  els.readerBody.querySelectorAll(".tts-now").forEach((n) => n.classList.remove("tts-now"));
+}
+
+async function openReader(it) {
+  const { text } = await Storage.getItemContent(it.id);
+  if (!text) return;
+  reader.item = it;
+  reader.paras = toParagraphs(text);
+  reader.queue = [];
+  els.readerTitle.textContent = it.title || it.url || "Untitled";
+  const deck = deckById(it.deckId);
+  const words = it.wordCount || text.split(/\s+/).length;
+  els.readerSub.textContent =
+    `${deck ? `${deck.icon} ${deck.name} · ` : ""}saved ${timeAgo(it.createdAt)}${it.domain ? ` · ${it.domain}` : ""}`;
+  els.readerWhen.textContent = it.domain || "";
+  els.readerEta.textContent = `⏱ ~${readingMinutes(words)} min`;
+  els.readerBody.innerHTML = reader.paras
+    .map((p, i) => `<p data-p="${i}">${escapeHtml(p)}</p>`)
+    .join("");
+  const src = openableUrl(it.sourceUrl || it.url);
+  if (src) {
+    els.readerSource.hidden = false;
+    els.readerSource.href = src;
+  } else {
+    els.readerSource.hidden = true;
+    els.readerSource.removeAttribute("href");
+  }
+  applyReaderPrefs();
+  els.readerOverlay.classList.remove("hidden");
+  stopReaderSpeech();
+
+  // Resume where you left off (lib/reader.js scrollProgress ↔ this scrollTop
+  // use the same 0..1-of-scrollable-height definition, so they agree).
+  const prog = await Storage.getReadProgress(it.id);
+  reader.progress = prog?.r || 0;
+  els.readerProgressFill.style.width = `${Math.round(reader.progress * 100)}%`;
+  els.readerResume.textContent =
+    prog && prog.r > 0.02 && prog.r < 0.98 ? `resumed at ${Math.round(prog.r * 100)}% · ${timeAgo(prog.at)}` : "";
+  if (prog && prog.r > 0.02 && prog.r < 0.98) {
+    requestAnimationFrame(() => {
+      els.readerPage.scrollTop = (els.readerPage.scrollHeight - els.readerPage.clientHeight) * prog.r;
+    });
+  } else {
+    els.readerPage.scrollTop = 0;
+  }
+  els.readerPage.focus({ preventScroll: true });
+}
+
+async function closeReader() {
+  stopReaderSpeech();
+  if (reader.item && reader.progress > 0.01) {
+    await Storage.setReadProgress(reader.item.id, reader.progress);
+  }
+  reader.item = null;
+  els.readerOverlay.classList.add("hidden");
+}
+
+els.readerBack.addEventListener("click", closeReader);
+els.readerOverlay.addEventListener("click", (e) => {
+  if (e.target === els.readerOverlay) closeReader(); // click the dim edge to leave, like the other modals
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !els.readerOverlay.classList.contains("hidden")) {
+    e.preventDefault();
+    closeReader();
+  }
+});
+
+// Scroll = progress. Debounced: a scroll event per wheel-tick must not turn
+// into an IndexedDB write per wheel-tick.
+els.readerPage.addEventListener(
+  "scroll",
+  () => {
+    const r = scrollProgress(els.readerPage.scrollTop, els.readerPage.scrollHeight, els.readerPage.clientHeight);
+    reader.progress = r;
+    els.readerProgressFill.style.width = `${Math.round(r * 100)}%`;
+    if (reader.saveTimer) clearTimeout(reader.saveTimer);
+    reader.saveTimer = setTimeout(async () => {
+      if (reader.item) await Storage.setReadProgress(reader.item.id, r);
+    }, 500);
+  },
+  { passive: true }
+);
+
+async function bumpReaderFont(dir) {
+  const i = READER_FONTS.indexOf(Number(state.settings.readerFontScale) || 1);
+  const next = READER_FONTS[Math.min(READER_FONTS.length - 1, Math.max(0, (i < 0 ? 1 : i) + dir))];
+  if (next === state.settings.readerFontScale) return;
+  await Storage.updateSettings({ readerFontScale: next });
+  state.settings = await Storage.getSettings();
+  applyReaderPrefs();
+}
+els.readerFontPlus.addEventListener("click", () => bumpReaderFont(1));
+els.readerFontMinus.addEventListener("click", () => bumpReaderFont(-1));
+els.readerTheme.addEventListener("click", async () => {
+  const cur = READER_THEMES.indexOf(state.settings.readerTheme || "paper");
+  const next = READER_THEMES[(cur + 1) % READER_THEMES.length];
+  await Storage.updateSettings({ readerTheme: next });
+  state.settings = await Storage.getSettings();
+  applyReaderPrefs();
+});
+
+// ---- 🔊 Listen (I-10) — offline OS voices, zero cost, zero network ----
+function speakCurrentChunk() {
+  const chunk = reader.queue[reader.chunk];
+  if (!chunk || !reader.speaking) {
+    if (!chunk) stopReaderSpeech();
+    return;
+  }
+  els.readerBody.querySelectorAll(".tts-now").forEach((n) => n.classList.remove("tts-now"));
+  const active = els.readerBody.querySelector(`[data-p="${chunk.para}"]`);
+  if (active) {
+    active.classList.add("tts-now");
+    active.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  const u = new SpeechSynthesisUtterance(chunk.text);
+  u.onend = () => {
+    if (!reader.speaking) return;
+    reader.chunk++;
+    speakCurrentChunk();
+  };
+  u.onerror = () => stopReaderSpeech(); // any engine failure must leave the UI sane, not stuck in "playing"
+  window.speechSynthesis.speak(u);
+}
+
+els.readerListen.addEventListener("click", () => {
+  if (!("speechSynthesis" in window)) return;
+  if (!reader.queue.length) reader.queue = speechQueue(reader.paras);
+  if (!reader.queue.length) return;
+  reader.speaking = true;
+  reader.chunk = 0;
+  els.readerListen.hidden = true;
+  els.readerStop.hidden = false;
+  speakCurrentChunk();
+});
+els.readerStop.addEventListener("click", stopReaderSpeech);
+document.addEventListener("visibilitychange", () => {
+  // Nobody wants a disembodied voice narrating a hidden tab.
+  if (document.hidden && reader.speaking) stopReaderSpeech();
+});
+
+// ---------------------------------------------------------------------------
+// Related rail (I-16) — "you also saved…", reasons attached, no embeddings yet
+// ---------------------------------------------------------------------------
+// Filled after the detail template paints (it is the slowest section to
+// compute, and the modal should never wait for it). data-for guards against a
+// stale fill landing in the NEXT item's modal.
+
+async function loadRelated(itemId) {
+  try {
+    const results = await Storage.relatedTo(itemId, { limit: 6 });
+    const wrap = document.getElementById("dRelated");
+    if (!wrap || wrap.dataset.for !== itemId) return;
+    if (!results.length) {
+      wrap.innerHTML =
+        `<span class="muted small-text">Nothing shares a tag, site or deck-word with this one yet. As your library grows, this rail fills itself — from your own organisation, not from a model.</span>`;
+      return;
+    }
+    wrap.innerHTML = "";
+    for (const r of results) {
+      const full = await Storage.getItem(r.id);
+      if (!full) continue; // deleted between scoring and display — silently honest
+      const chip = document.createElement("button");
+      chip.className = "related-chip";
+      chip.innerHTML = `<span>${typeEmoji(full.type)}</span>` +
+        `<span class="rtitle">${escapeHtml(full.title || full.url || "Untitled")}</span>` +
+        `<span class="why">${escapeHtml(r.why.join(" · "))}</span>`;
+      chip.addEventListener("click", () => openDetail(r.id));
+      wrap.appendChild(chip);
+    }
+  } catch {
+    const wrap = document.getElementById("dRelated");
+    if (wrap) wrap.innerHTML = "";
+  }
+}
+
 async function fillSnippets(ids) {
-  if (!ids.length) return;
-  const missing = ids.filter((id) => !state.contentCache.has(id));
+  if (!ids.length) return;  const missing = ids.filter((id) => !state.contentCache.has(id));
   if (missing.length) {
     const contents = await Storage.getContentsFor(missing);
     for (const id of missing) state.contentCache.set(id, contents.get(id)?.text || "");
@@ -581,41 +906,58 @@ async function openDetail(id) {
   const detailTabs = isSession ? sessionTabs(it) : [];
   const detailStatus = statusOf(it);
 
+  const words = text ? it.wordCount || text.split(/\s+/).filter(Boolean).length : 0;
   els.modalBody.innerHTML = `
-    ${hero}
-    <div class="detail-header">
-      <div class="detail-thumb" ${thumbTint}>${thumb}</div>
-      <div style="flex:1; min-width:0;">
-        <input class="detail-title-input" id="dTitle" value="${escapeHtml(it.title || "")}" />
-        <div class="detail-meta">
-          ${it.url ? `<a href="${escapeHtml(it.url)}" target="_blank" rel="noopener">${escapeHtml(it.url)}</a>` : ""}
-          <div>${timeAgo(it.createdAt)}${it.domain ? ` · ${escapeHtml(it.domain)}` : ""}</div>
+    <div class="detail">
+      <span class="detail-accent" style="--accent:${color}"></span>
+      ${hero}
+      <header class="detail-head">
+        <div class="detail-thumb" ${thumbTint}>${thumb}</div>
+        <div class="detail-head-main">
+          <input class="detail-title-input" id="dTitle" value="${escapeHtml(it.title || "")}" placeholder="Untitled" aria-label="Item title" />
+          <div class="detail-meta">
+            <span class="meta-chip type-chip">${typeEmoji(it.type)} ${it.type}</span>
+            ${it.domain ? `<span class="meta-chip domain-chip">${escapeHtml(it.domain)}</span>` : ""}
+            <span class="meta-when">saved ${timeAgo(it.createdAt)}</span>
+            ${words ? `<span class="meta-when">· ~${readingMinutes(words)} min</span>` : ""}
+            ${(() => {
+              // The only route OUT of the extension for this item: an http(s)
+              // anchor (see openableUrl); a legacy unsafe url shows as text.
+              const openable = openableUrl(it.url);
+              if (openable) return `<button id="dOpen" class="meta-open">↗ Open original</button>`;
+              return it.url ? `<span class="url-unopenable" title="Saved copy — the original link was not a safe web address">${escapeHtml(it.domain || "no link")}</span>` : "";
+            })()}
+          </div>
         </div>
+      </header>
+
+      <div class="detail-toolbar">
+        <label class="deck-pick" title="Which deck this lives in">
+          <select id="dDeck">
+            ${state.decks.map((d) => `<option value="${d.id}" ${d.id === it.deckId ? "selected" : ""}>${d.icon} ${escapeHtml(d.name)}</option>`).join("")}
+          </select>
+        </label>
+        <div class="status-pills" id="dStatusRow" role="group" aria-label="Reading status">
+          ${STATUSES.map(
+            (s) =>
+              `<button class="status-pill${detailStatus === s ? " active" : ""}" data-status="${s}" title="${STATUS_META[s].hint}">${STATUS_META[s].icon} ${STATUS_META[s].label}</button>`
+          ).join("")}
+        </div>
+        ${isSession && detailTabs.length ? `<button id="dRestore" class="session-restore">⤢ Restore ${detailTabs.length} tabs</button>` : ""}
       </div>
-    </div>
 
-    <div class="detail-section-title">Deck</div>
-    <select id="dDeck">
-      ${state.decks.map((d) => `<option value="${d.id}" ${d.id === it.deckId ? "selected" : ""}>${d.icon} ${escapeHtml(d.name)}</option>`).join("")}
-    </select>
+      <section class="detail-block">
+        <div class="detail-section-title">Tags</div>
+        <div class="tag-editor" id="dTags">
+          ${(it.tags || []).map((t) => `<span class="tag-chip" data-tag="${escapeHtml(t)}">#${escapeHtml(t)} <button title="Remove tag">✕</button></span>`).join("")}
+          <input id="dTagInput" placeholder="+ add tag, press Enter" />
+        </div>
+      </section>
 
-    <div class="detail-section-title">Status</div>
-    <div class="status-pills" id="dStatusRow">
-      ${STATUSES.map(
-        (s) =>
-          `<button class="status-pill${detailStatus === s ? " active" : ""}" data-status="${s}" title="${STATUS_META[s].hint}">${STATUS_META[s].icon} ${STATUS_META[s].label}</button>`
-      ).join("")}
-    </div>
-
-    <div class="detail-section-title">Tags</div>
-    <div class="tag-editor" id="dTags">
-      ${(it.tags || []).map((t) => `<span class="tag-chip" data-tag="${escapeHtml(t)}">#${escapeHtml(t)} <button>✕</button></span>`).join("")}
-      <input id="dTagInput" placeholder="add tag + Enter" />
-    </div>
-
-    ${
-      isSession && detailTabs.length
-        ? `<div class="detail-section-title">Tabs in this window (${detailTabs.length})</div>
+      ${
+        isSession && detailTabs.length
+          ? `<section class="detail-block">
+    <div class="detail-section-title">Tabs in this window <button id="dCopyTabs" class="mini-cta">📋 Copy links</button></div>
     <div class="session-tabs" id="dSessionTabs">
       ${detailTabs
         .map(
@@ -623,30 +965,47 @@ async function openDetail(id) {
             `<button class="session-tab" data-idx="${i}" title="${escapeHtml(t.url)}"><span class="session-tab-title">${escapeHtml(t.title)}</span><span class="session-tab-url">${escapeHtml(t.url)}</span></button>`
         )
         .join("")}
-    </div>`
-        : ""
-    }
+    </div>
+  </section>`
+          : ""
+      }
 
-    ${text ? `<div class="detail-section-title">Saved content</div><div class="detail-body-text">${escapeHtml(text)}</div>` : ""}
-    ${it.excerpt && !text ? `<div class="detail-section-title">Excerpt</div><div class="detail-body-text">${escapeHtml(it.excerpt)}</div>` : ""}
+      ${
+        text
+          ? `<section class="detail-block">
+    <div class="detail-section-title">Saved content${text.length >= 600 ? ` <button id="dRead" class="mini-cta" title="Your saved copy, set like a page — fonts, themes, read-aloud">📖 Read cleanly</button>` : ""}</div>
+    <div class="detail-body-text detail-preview">${escapeHtml(text)}</div>
+  </section>`
+          : it.excerpt
+          ? `<section class="detail-block">
+    <div class="detail-section-title">Excerpt</div>
+    <div class="detail-body-text detail-preview">${escapeHtml(it.excerpt)}</div>
+  </section>`
+          : ""
+      }
 
-    ${
-      isSession
-        ? ""
-        : `<div class="detail-section-title">Reference / source</div>
-    <div class="detail-body-text" style="max-height:60px">${escapeHtml(it.reference || it.sourceUrl || it.url || "—")}</div>`
-    }
+      <section class="detail-block">
+        <div class="detail-section-title">You also saved</div>
+        <div class="related-rail" id="dRelated" data-for="${escapeHtml(it.id)}"><span class="muted small-text">Checking your library…</span></div>
+      </section>
 
-    <div class="detail-section-title">Your note</div>
-    <textarea id="dNote" rows="2" class="detail-note" placeholder="Add a personal note…">${escapeHtml(it.note || "")}</textarea>
+      <section class="detail-block">
+        <div class="detail-section-title">Your note</div>
+        <textarea id="dNote" rows="2" class="detail-note" placeholder="Why did this deserve keeping? A future you will be grateful…">${escapeHtml(it.note || "")}</textarea>
+        ${
+          isSession
+            ? ""
+            : `<div class="detail-ref" title="Where this came from">${escapeHtml(it.reference || it.sourceUrl || "")}</div>`
+        }
+      </section>
 
-    <div class="detail-actions">
-      ${it.url ? `<button id="dOpen">🔗 Open source</button>` : ""}
-      ${isSession && detailTabs.length ? `<button id="dRestore">⤢ Restore all ${detailTabs.length}</button><button id="dCopyTabs">📋 Copy links</button>` : ""}
-      <button id="dPin">${it.pinned ? "📍 Unpin" : "📌 Pin"}</button>
-      <button id="dCopy">📋 Copy reference</button>
-      <button id="dDelete" class="danger-btn">Delete</button>
-      <button id="dSave" class="primary">💾 Save changes</button>
+      <footer class="detail-foot">
+        <button id="dDelete" class="danger-btn">🗑 Delete</button>
+        <button id="dCopy" title="Copy the reference / URL">📋 Copy</button>
+        <span class="detail-foot-spacer"></span>
+        <button id="dPin">${it.pinned ? "📌 Unpin" : "📌 Pin"}</button>
+        <button id="dSave" class="primary">💾 Save changes</button>
+      </footer>
     </div>
   `;
 
@@ -711,9 +1070,13 @@ async function openDetail(id) {
     });
   }
 
-  if (it.url) {
+  const dReadBtn = document.getElementById("dRead");
+  if (dReadBtn) dReadBtn.addEventListener("click", () => openReader(it));
+  loadRelated(it.id);
+
+  if (openableUrl(it.url)) {
     document.getElementById("dOpen").addEventListener("click", async () => {
-      window.open(it.url, "_blank");
+      window.open(openableUrl(it.url), "_blank");
       // Optional triage automation (Settings): opening the source finishes the
       // item — but only out of Unread/Reading, never out of Archived.
       if (state.settings.autoDoneOnOpen === true) {
@@ -734,7 +1097,7 @@ async function openDetail(id) {
     await navigator.clipboard.writeText(it.reference || it.url || "");
     const btn = document.getElementById("dCopy");
     btn.textContent = "✅ Copied";
-    setTimeout(() => (btn.textContent = "📋 Copy reference"), 1200);
+    setTimeout(() => (btn.textContent = "📋 Copy"), 1200);
   });
   document.getElementById("dDelete").addEventListener("click", async () => {
     if (!confirm("Delete this item?")) return;
@@ -1233,6 +1596,7 @@ async function openSettings(section) {
   els.autoSaveToggle.checked = s.autoSaveSelection ?? s.showFloatingButton ?? true;
   els.spaceKToggle.checked = s.spaceKQuickSave !== false;
   els.autoDoneToggle.checked = s.autoDoneOnOpen === true;
+  if (els.dailyDigestSelect) els.dailyDigestSelect.value = String(Number(s.dailyDigestHour) || 0);
   renderMutedSites(s.mutedHosts || []);
   await refreshDiagnostics();
   await refreshSyncUI();
@@ -1311,13 +1675,14 @@ async function persistToggles() {
     showFloatingButton: els.autoSaveToggle.checked, // legacy key, kept in sync
     spaceKQuickSave: els.spaceKToggle.checked,
     autoDoneOnOpen: els.autoDoneToggle.checked,
+    dailyDigestHour: Number(els.dailyDigestSelect?.value) || 0,
   };
   await Storage.updateSettings(patch);
   // The Library writes settings straight to storage, so tell the background to
   // nudge open tabs — otherwise a toggle appears to do nothing until a reload.
   ext.runtime.sendMessage({ type: "KIPI_SETTINGS_CHANGED", settings: patch }).catch(() => {});
 }
-[els.autoOrganizeToggle, els.autoSaveToggle, els.toastToggle, els.spaceKToggle, els.autoDoneToggle].forEach((t) => {
+[els.autoOrganizeToggle, els.autoSaveToggle, els.toastToggle, els.spaceKToggle, els.autoDoneToggle, els.dailyDigestSelect].forEach((t) => {
   if (t) t.addEventListener("change", persistToggles);
 });
 
@@ -1516,6 +1881,13 @@ async function applyHash() {
   } else if (params.get("import")) {
     await reload();
     els.importBanner?.classList.remove("hidden");
+  } else if (params.get("daily")) {
+    // The Daily 5 notification and the "today's five" popup button land here:
+    // same view, same five, same seed — no state to keep in sync.
+    await reload();
+    state.view = "daily";
+    updateActiveNav();
+    await renderGrid({ reset: true });
   }
 }
 

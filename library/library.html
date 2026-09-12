@@ -21,6 +21,9 @@
       <div class="nav-item" data-deck="pinned">
         <span class="nav-ico">📌</span><span class="nav-label">Pinned</span><span class="nav-count" id="countPinned"></span>
       </div>
+      <div class="nav-item" data-deck="daily">
+        <span class="nav-ico">🎲</span><span class="nav-label">Daily 5</span>
+      </div>
     </nav>
     <div class="nav-section" id="statusSection">
       <div class="nav-section-title">Status</div>
@@ -117,6 +120,12 @@
       <button id="bulkClearBtn" class="ghost-link" title="Clear selection">✕</button>
     </div>
 
+    <div id="dailyToolbar" class="daily-toolbar hidden">
+      <span class="daily-blurb" id="dailyBlurb">Two oldest unread, two forgotten gems, one surprise — chosen on this device, from your library, every local day.</span>
+      <button id="dailyRerollBtn" class="ghost-btn" title="Re-roll the random pick and today's five changes">🔀 Surprise me</button>
+      <button id="dailyNotifyBtn" class="ghost-btn" title="Offer today's five as a notification">🔔 Daily notification</button>
+    </div>
+
     <div id="itemsGrid" class="items-grid"></div>
     <div id="gridSentinel" class="grid-sentinel hidden" title="Loading more…">
       <span class="sentinel-dot"></span><span class="sentinel-dot"></span><span class="sentinel-dot"></span>
@@ -137,6 +146,36 @@
   <div class="modal">
     <button id="modalClose" class="modal-close" title="Close">✕</button>
     <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Reader (ideas.md I-08 + I-10): the saved text, set like a page, read with
+     eyes or ears. It renders ONLY the copy Kipideck captured at save time —
+     no re-fetch, no network, works on a plane, cannot be link-rotted. -->
+<div id="readerOverlay" class="reader-overlay hidden">
+  <div class="reader-shell" id="readerShell">
+    <header class="reader-bar">
+      <button id="readerBack" class="ghost-btn" title="Back to the item (Esc)">← Library</button>
+      <span class="reader-when" id="readerWhen"></span>
+      <span class="reader-spacer"></span>
+      <span class="reader-eta" id="readerEta" title="Estimated reading time from the saved word count"></span>
+      <button id="readerFontMinus" class="ghost-btn" title="Smaller text">A−</button>
+      <button id="readerFontPlus" class="ghost-btn" title="Bigger text">A+</button>
+      <button id="readerTheme" class="ghost-btn" title="Page colour">🎨</button>
+      <button id="readerListen" class="ghost-btn" title="Read aloud with your device's own voices — offline, free">🔊 Listen</button>
+      <button id="readerStop" class="ghost-btn hidden" title="Stop reading aloud">⏹</button>
+    </header>
+    <div class="reader-progress"><i id="readerProgressFill"></i></div>
+    <article class="reader-page" id="readerPage" tabindex="0">
+      <h1 class="reader-title" id="readerTitle"></h1>
+      <div class="reader-sub" id="readerSub"></div>
+      <div class="reader-body" id="readerBody"></div>
+    </article>
+    <footer class="reader-foot">
+      <span id="readerResume" class="muted small-text"></span>
+      <span class="reader-spacer"></span>
+      <a id="readerSource" class="small-text" target="_blank" rel="noopener">Open the original ↗</a>
+    </footer>
   </div>
 </div>
 
@@ -195,6 +234,17 @@
         <small class="muted">Only unread or reading items move, and only when you open them from a detail card. Never archived ones.</small>
       </span>
     </label>
+    <div class="form-row">
+      <label for="dailyDigestSelect">Kipi Daily 5</label>
+      <select id="dailyDigestSelect" title="A notification with five picks from your own library — never before the hour you choose, never twice a day">
+        <option value="0">Off — 🎲 Daily 5 in the library and popup still works</option>
+        <option value="7">Notify at 07:00</option>
+        <option value="9">Notify at 09:00</option>
+        <option value="12">Notify at 12:00</option>
+        <option value="18">Notify at 18:00</option>
+        <option value="21">Notify at 21:00</option>
+      </select>
+    </div>
 
     <div class="section-title">Quiet sites</div>
     <div id="mutedSites" class="muted-sites"></div>

@@ -2,6 +2,61 @@
 
 All versions are the extension version in `manifest.json`.
 
+## 1.8.0 — recall, reader, and a library that looks like one (12 September 2026)
+
+The "consume" phase ships its core, plus the security pass that was owed before store submission.
+
+### Added (I-16 · related items)
+
+- **"You also saved" rail** in the item detail modal — shared tags, domain, deck and title
+  overlap, scored over a bounded candidate pool so 50k-item libraries stay as fast as 50-item
+  ones. Each chip says *why* it was picked; clicking opens that item. `lib/related.js`.
+
+### Added (I-11 · resurfacing)
+
+- **Kipi Daily 5** — two unread, one forgotten gem (oldest unread past 30 days), one surprise,
+  one filler; seeded by the day so the popup, the Library's Daily view and the notification
+  all show the same five. 🔀 rerolls only the surprise. One quiet notification a day
+  (background alarm, opt-out in Settings); clicking it lands on `Library → Daily`.
+  With fewer than five candidates, Kipideck says so instead of padding. `lib/digest.js`.
+
+### Added (I-08 + I-10 · reader and listening)
+
+- **Reader view** renders your saved copy — serif/sans, three themes, font size, line width —
+  with the scroll position remembered per item and a `~N min` estimate everywhere it matters.
+  Offline by construction: it reads what Kipideck stored, not the live page.
+- **Read-aloud** rides along: OS voices via `speechSynthesis` (free, local), sentence-by-sentence
+  with the current line highlighted, rate selector, resume where you stopped. `lib/reader.js`.
+
+### Added (I-15 · tagging layer 2)
+
+- `suggestKeywords()` — light TF-IDF-flavoured extraction over the saved text at capture time.
+  It only ever *adds* suggestions after the existing regex layer, caps at five, never touches
+  tags you chose yourself.
+
+### Changed (the look of the library)
+
+- **The item detail modal is rebuilt**: deck-colour ribbon, full-bleed hero for images, title as
+  a real headline, deck + status folded into one toolbar row, reference demoted to a quiet line,
+  tags and note in soft blocks, and a sticky action bar where Save changes can't be missed.
+  Same behaviour, half the chrome. Sidebar gets a solid active pill; cards, chips and related
+  suggestions get the same hover/shadow language.
+
+### Security (audit of 12 Sept — full write-up in `docs/QA-SECURITY-REPORT-2026-09-12.md`)
+
+- `javascript:`/`data:` URLs are now stripped at the **database write chokepoint**, not just at
+  render: capture falls back to the page URL, `db.js` sanitises `url`/`image`/`favIconUrl`/
+  `sourceUrl` on every write, and import-injected URLs land neutralised. Legacy rows stay inert
+  behind the render gates until their next write.
+- The sync bridge answers only `kipideck.vercel.app` and loopback origins (`isBridgeOrigin`);
+  the unused `externally_connectable` grant is gone from the manifest.
+- Favicons and hero images must pass `isSafeImageUrl` before they touch a `src`.
+
+### Tests
+
+- +44 tests (related 11, digest 13, reader 14, security 14, classify +6, wiring −2 folded in):
+  **472 / 472**, still fixture-only, no browser, no network.
+
 ## 1.7.0 — ZIP import (12 September 2026)
 
 Phase 2 continues: the import dialog now opens ZIP archives in the browser.

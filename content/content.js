@@ -302,7 +302,22 @@
   // extension data directly (different origin / storage) — it just sends a
   // window message, this content script forwards it to the background script,
   // and the background opens library/library.html in a new tab.
+  //
+  // QA/security pass (2026-09-12): this content script runs on EVERY page, so
+  // without an origin gate any site the user visits could ask it "do you have
+  // Kipideck and how many saves?" (a fingerprint + a small leak of usage),
+  // learn the exact extension version (an "is this install vulnerable?" map),
+  // or summon a library tab on top of whatever they are doing. The bridge is
+  // for OUR site; answer only OUR site (plus loopback, so `next dev` can be
+  // developed against). Everything else gets silence.
   // ---------------------------------------------------------------------------
+  function isBridgeOrigin(origin) {
+    if (origin === "https://kipideck.vercel.app") return true;
+    // Development: any http(s) localhost port is the site being worked on.
+    // A public page can never pretend to be this origin — browsers set
+    // event.origin from the real URL of the calling document.
+    return /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
+  }
   try {
     const FLAG = "__KIPIDECK_INSTALLED__";
     if (!window[FLAG]) {
@@ -320,6 +335,7 @@
 
       window.addEventListener("message", (event) => {
         if (event.source !== window) return;
+        if (!isBridgeOrigin(event.origin)) return; // see the block comment above
         const msg = event.data;
         if (!msg || msg.source !== "kipideck-website") return;
 
